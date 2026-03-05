@@ -24,7 +24,7 @@ function ensureSandbox() {
   }
 }
 
-function parsePackages(code: string): string[] {
+export function parsePackages(code: string): string[] {
   const importRegex = /^import\s+.*?\s+from\s+['"]([^'"./][^'"]*)['"]/gm;
   const packages = new Set<string>();
 
