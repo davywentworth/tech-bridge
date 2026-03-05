@@ -96,6 +96,16 @@ describe('POST /api/course/generate', () => {
     expect(res.status).toBe(500);
     expect(res.body).toHaveProperty('error');
   });
+
+  it('400 response body contains a structured zod error with fieldErrors', async () => {
+    const res = await request(app)
+      .post('/api/course/generate')
+      .send({ targetTech: 'Redux Toolkit' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toHaveProperty('fieldErrors');
+    expect(res.body.error.fieldErrors).toHaveProperty('knownTech');
+  });
 });
 
 describe('GET /api/course/:id', () => {
@@ -142,13 +152,4 @@ describe('GET /api/course/:id', () => {
     expect(res.headers['content-type']).toMatch(/application\/json/);
   });
 
-  it('400 response body contains a structured zod error with fieldErrors', async () => {
-    const res = await request(app)
-      .post('/api/course/generate')
-      .send({ targetTech: 'Redux Toolkit' });
-
-    expect(res.status).toBe(400);
-    expect(res.body.error).toHaveProperty('fieldErrors');
-    expect(res.body.error.fieldErrors).toHaveProperty('knownTech');
-  });
 });
