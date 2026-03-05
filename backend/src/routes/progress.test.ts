@@ -53,6 +53,11 @@ describe('GET /api/progress/:courseId', () => {
     expect(res.body).toHaveLength(1);
     expect(res.body[0].completed).toBe(1);
   });
+
+  it('responds with Content-Type application/json', async () => {
+    const res = await request(app).get(`/api/progress/${uniqueCourseId()}`);
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+  });
 });
 
 describe('PUT /api/progress/:courseId', () => {
@@ -190,12 +195,5 @@ describe('PUT /api/progress/:courseId', () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toHaveProperty('fieldErrors');
     expect(res.body.error.fieldErrors).toHaveProperty('lessonId');
-  });
-});
-
-describe('GET /api/progress/:courseId', () => {
-  it('responds with Content-Type application/json', async () => {
-    const res = await request(app).get(`/api/progress/${uniqueCourseId()}`);
-    expect(res.headers['content-type']).toMatch(/application\/json/);
   });
 });
