@@ -66,6 +66,9 @@ export async function runCode(
   const tmpFile = path.join(tmpDir, `techbridge-${slug}.${ext}`)
 
   try {
+    if (language === 'javascript') {
+      ensureSandbox()
+    }
     fs.writeFileSync(tmpFile, code, 'utf-8')
 
     let command: string
@@ -75,7 +78,6 @@ export async function runCode(
       command = 'npx'
       args = ['tsx', tmpFile]
     } else if (language === 'javascript') {
-      ensureSandbox()
       installMissingPackages(parsePackages(code))
       command = 'node'
       args = [tmpFile]
