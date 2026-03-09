@@ -1,6 +1,6 @@
-import type { ExecuteResult } from '../types';
+import type { ExecuteResult } from '../types'
 
-const BASE = 'http://localhost:3001/api';
+const BASE = 'http://localhost:3001/api'
 
 export async function runCode(
   code: string,
@@ -11,7 +11,7 @@ export async function runCode(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code, language, lessonTitle }),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
 }

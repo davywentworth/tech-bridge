@@ -1,7 +1,7 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { HomePage } from './pages/HomePage';
-import { CurriculumPage } from './pages/CurriculumPage';
-import { LessonPage } from './pages/LessonPage';
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { HomePage } from './pages/HomePage'
+import { CurriculumPage } from './pages/CurriculumPage'
+import { LessonPage } from './pages/LessonPage'
 
 export default function App() {
   return (
@@ -12,5 +12,5 @@ export default function App() {
         <Route path="/curriculum/:courseId/lesson/:lessonId" element={<LessonPage />} />
       </Routes>
     </BrowserRouter>
-  );
+  )
 }
