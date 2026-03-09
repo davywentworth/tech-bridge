@@ -5,7 +5,10 @@ import type { Lesson } from '../types'
 import type { ViewMode } from './ViewToggle'
 import { ViewToggle } from './ViewToggle'
 import { CodeEditor } from './CodeEditor'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import type { RefObject } from 'react'
+
+const CODE_PANEL_MAX_HEIGHT = '500px'
 
 interface Props {
   lesson: Lesson
@@ -17,6 +20,31 @@ interface Props {
 
 export function LessonView({ lesson, knownTech, targetTech, isCompleted, onMarkComplete }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('sidebyside')
+  const [scrollLocked, setScrollLocked] = useState(true)
+  const leftRef = useRef<HTMLDivElement>(null)
+  const rightRef = useRef<HTMLDivElement>(null)
+  const isSyncing = useRef(false)
+
+  const handleLeftScroll = () => {
+    if (!scrollLocked || isSyncing.current || !leftRef.current || !rightRef.current) return
+    isSyncing.current = true
+    rightRef.current.scrollTop = leftRef.current.scrollTop
+    isSyncing.current = false
+  }
+
+  const handleRightScroll = () => {
+    if (!scrollLocked || isSyncing.current || !leftRef.current || !rightRef.current) return
+    isSyncing.current = true
+    leftRef.current.scrollTop = rightRef.current.scrollTop
+    isSyncing.current = false
+  }
+
+  const handleToggleLock = () => {
+    if (!scrollLocked && leftRef.current && rightRef.current) {
+      rightRef.current.scrollTop = leftRef.current.scrollTop
+    }
+    setScrollLocked((prev) => !prev)
+  }
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
@@ -61,19 +89,44 @@ export function LessonView({ lesson, knownTech, targetTech, isCompleted, onMarkC
 
         {/* Code comparison */}
         {viewMode === 'sidebyside' ? (
-          <div
-            style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28 }}
-          >
-            <CodeBlock
-              title={`${knownTech} way`}
-              code={lesson.knownWayCode}
-              language={lesson.language}
-            />
-            <CodeBlock
-              title={`${targetTech} way`}
-              code={lesson.targetWayCode}
-              language={lesson.language}
-            />
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+              <button
+                onClick={handleToggleLock}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  border: '1px solid',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  background: scrollLocked ? '#eff6ff' : 'transparent',
+                  borderColor: scrollLocked ? '#3b82f6' : '#d1d5db',
+                  color: scrollLocked ? '#1d4ed8' : '#6b7280',
+                }}
+              >
+                {scrollLocked ? 'Scroll locked' : 'Scroll unlocked'}
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <CodeBlock
+                title={`${knownTech} way`}
+                code={lesson.knownWayCode}
+                language={lesson.language}
+                scrollRef={leftRef}
+                onScroll={handleLeftScroll}
+                testId="left-scroll-panel"
+              />
+              <CodeBlock
+                title={`${targetTech} way`}
+                code={lesson.targetWayCode}
+                language={lesson.language}
+                scrollRef={rightRef}
+                onScroll={handleRightScroll}
+                testId="right-scroll-panel"
+              />
+            </div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 28 }}>
@@ -123,7 +176,16 @@ export function LessonView({ lesson, knownTech, targetTech, isCompleted, onMarkC
   )
 }
 
-function CodeBlock({ title, code, language }: { title: string; code: string; language: string }) {
+interface CodeBlockProps {
+  title: string
+  code: string
+  language: string
+  scrollRef?: RefObject<HTMLDivElement>
+  onScroll?: () => void
+  testId?: string
+}
+
+function CodeBlock({ title, code, language, scrollRef, onScroll, testId }: CodeBlockProps) {
   return (
     <div>
       <div
@@ -138,13 +200,20 @@ function CodeBlock({ title, code, language }: { title: string; code: string; lan
       >
         {title}
       </div>
-      <SyntaxHighlighter
-        language={language}
-        style={vscDarkPlus}
-        customStyle={{ borderRadius: 8, fontSize: 13, margin: 0 }}
+      <div
+        ref={scrollRef}
+        onScroll={onScroll}
+        data-testid={testId}
+        style={{ maxHeight: CODE_PANEL_MAX_HEIGHT, overflowY: 'auto', borderRadius: 8 }}
       >
-        {code}
-      </SyntaxHighlighter>
+        <SyntaxHighlighter
+          language={language}
+          style={vscDarkPlus}
+          customStyle={{ borderRadius: 8, fontSize: 13, margin: 0, overflow: 'visible' }}
+        >
+          {code}
+        </SyntaxHighlighter>
+      </div>
     </div>
   )
 }
