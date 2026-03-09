@@ -20,23 +20,27 @@ interface Props {
 
 export function LessonView({ lesson, knownTech, targetTech, isCompleted, onMarkComplete }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('sidebyside')
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    if (mode === 'sidebyside') setScrollLocked(true)
+    setViewMode(mode)
+  }
   const [scrollLocked, setScrollLocked] = useState(true)
   const leftRef = useRef<HTMLDivElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
-  const isSyncing = useRef(false)
 
   const handleLeftScroll = () => {
-    if (!scrollLocked || isSyncing.current || !leftRef.current || !rightRef.current) return
-    isSyncing.current = true
-    rightRef.current.scrollTop = leftRef.current.scrollTop
-    isSyncing.current = false
+    if (!scrollLocked || !leftRef.current || !rightRef.current) return
+    if (rightRef.current.scrollTop !== leftRef.current.scrollTop) {
+      rightRef.current.scrollTop = leftRef.current.scrollTop
+    }
   }
 
   const handleRightScroll = () => {
-    if (!scrollLocked || isSyncing.current || !leftRef.current || !rightRef.current) return
-    isSyncing.current = true
-    leftRef.current.scrollTop = rightRef.current.scrollTop
-    isSyncing.current = false
+    if (!scrollLocked || !leftRef.current || !rightRef.current) return
+    if (leftRef.current.scrollTop !== rightRef.current.scrollTop) {
+      leftRef.current.scrollTop = rightRef.current.scrollTop
+    }
   }
 
   const handleToggleLock = () => {
@@ -61,7 +65,7 @@ export function LessonView({ lesson, knownTech, targetTech, isCompleted, onMarkC
         >
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{lesson.title}</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-            <ViewToggle mode={viewMode} onChange={setViewMode} />
+            <ViewToggle mode={viewMode} onChange={handleViewModeChange} />
             <button
               onClick={() => onMarkComplete(!isCompleted)}
               style={{
@@ -209,7 +213,7 @@ function CodeBlock({ title, code, language, scrollRef, onScroll, testId }: CodeB
         <SyntaxHighlighter
           language={language}
           style={vscDarkPlus}
-          customStyle={{ borderRadius: 8, fontSize: 13, margin: 0, overflow: 'visible' }}
+          customStyle={{ borderRadius: 8, fontSize: 13, margin: 0 }}
         >
           {code}
         </SyntaxHighlighter>

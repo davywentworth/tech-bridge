@@ -215,12 +215,15 @@ describe('LessonView', () => {
     expect(rightPanel.scrollTop).toBe(150)
   })
 
-  it('restores the scroll lock toggle when switching back to side-by-side mode', async () => {
+  it('restores scroll lock to locked state when switching back to side-by-side mode', async () => {
     const user = userEvent.setup()
     renderLesson()
-    await user.click(screen.getByRole('button', { name: 'Sequential' }))
-    expect(screen.queryByRole('button', { name: /Scroll/ })).not.toBeInTheDocument()
 
+    // Unlock, switch to sequential, switch back — lock should be reset to locked
+    await user.click(screen.getByRole('button', { name: 'Scroll locked' }))
+    expect(screen.getByRole('button', { name: 'Scroll unlocked' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Sequential' }))
     await user.click(screen.getByRole('button', { name: 'Side by Side' }))
     expect(screen.getByRole('button', { name: 'Scroll locked' })).toBeInTheDocument()
   })
