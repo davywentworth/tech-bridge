@@ -1,19 +1,19 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react'
 
 interface Props {
-  onGenerate: (knownTech: string, targetTech: string) => void;
-  loading: boolean;
-  error: string | null;
+  onGenerate: (knownTech: string, targetTech: string) => void
+  loading: boolean
+  error: string | null
 }
 
 export function CourseSetup({ onGenerate, loading, error }: Props) {
-  const [knownTech, setKnownTech] = useState('Redux');
-  const [targetTech, setTargetTech] = useState('Redux Toolkit');
+  const [knownTech, setKnownTech] = useState('Redux')
+  const [targetTech, setTargetTech] = useState('Redux Toolkit')
 
   function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+    e.preventDefault()
     if (knownTech.trim() && targetTech.trim()) {
-      onGenerate(knownTech.trim(), targetTech.trim());
+      onGenerate(knownTech.trim(), targetTech.trim())
     }
   }
 
@@ -48,7 +48,15 @@ export function CourseSetup({ onGenerate, loading, error }: Props) {
         </label>
 
         {error && (
-          <div style={{ color: '#c0392b', fontSize: 13, padding: '8px 12px', background: '#fdf0ed', borderRadius: 6 }}>
+          <div
+            style={{
+              color: '#c0392b',
+              fontSize: 13,
+              padding: '8px 12px',
+              background: '#fdf0ed',
+              borderRadius: 6,
+            }}
+          >
             {error}
           </div>
         )}
@@ -62,7 +70,7 @@ export function CourseSetup({ onGenerate, loading, error }: Props) {
         </button>
       </form>
     </div>
-  );
+  )
 }
 
 const inputStyle: React.CSSProperties = {
@@ -72,7 +80,7 @@ const inputStyle: React.CSSProperties = {
   borderRadius: 8,
   outline: 'none',
   fontFamily: 'inherit',
-};
+}
 
 const buttonStyle = (loading: boolean): React.CSSProperties => ({
   padding: '12px 20px',
@@ -85,4 +93,4 @@ const buttonStyle = (loading: boolean): React.CSSProperties => ({
   cursor: loading ? 'not-allowed' : 'pointer',
   marginTop: 8,
   fontFamily: 'inherit',
-});
+})

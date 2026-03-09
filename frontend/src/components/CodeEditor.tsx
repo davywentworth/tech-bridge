@@ -1,39 +1,48 @@
-import Editor from '@monaco-editor/react';
-import type { Lesson, ExecuteResult } from '../types';
-import { runCode } from '../api/execute';
-import { useState } from 'react';
-import { OutputPanel } from './OutputPanel';
+import Editor from '@monaco-editor/react'
+import type { Lesson, ExecuteResult } from '../types'
+import { runCode } from '../api/execute'
+import { useState } from 'react'
+import { OutputPanel } from './OutputPanel'
 
 interface Props {
-  lesson: Lesson;
+  lesson: Lesson
 }
 
 export function CodeEditor({ lesson }: Props) {
-  const [code, setCode] = useState(lesson.starterCode);
-  const [result, setResult] = useState<ExecuteResult | null>(null);
-  const [running, setRunning] = useState(false);
-  const [showSolution, setShowSolution] = useState(false);
+  const [code, setCode] = useState(lesson.starterCode)
+  const [result, setResult] = useState<ExecuteResult | null>(null)
+  const [running, setRunning] = useState(false)
+  const [showSolution, setShowSolution] = useState(false)
 
   async function handleRun() {
-    setRunning(true);
+    setRunning(true)
     try {
-      const res = await runCode(code, lesson.language, lesson.title);
-      setResult(res);
+      const res = await runCode(code, lesson.language, lesson.title)
+      setResult(res)
     } catch (e) {
-      setResult({ stdout: '', stderr: String(e), exitCode: 1 });
+      setResult({ stdout: '', stderr: String(e), exitCode: 1 })
     } finally {
-      setRunning(false);
+      setRunning(false)
     }
   }
 
   function handleShowSolution() {
-    setShowSolution(true);
-    setCode(lesson.solutionCode);
+    setShowSolution(true)
+    setCode(lesson.solutionCode)
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#1e1e1e', borderRadius: '8px 8px 0 0' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '8px 12px',
+          background: '#1e1e1e',
+          borderRadius: '8px 8px 0 0',
+        }}
+      >
         <span style={{ fontSize: 12, color: '#9ca3af', fontFamily: 'monospace' }}>
           {lesson.language}
         </span>
@@ -58,7 +67,13 @@ export function CodeEditor({ lesson }: Props) {
 
       <Editor
         height="280px"
-        language={lesson.language === 'typescript' ? 'typescript' : lesson.language === 'javascript' ? 'javascript' : 'python'}
+        language={
+          lesson.language === 'typescript'
+            ? 'typescript'
+            : lesson.language === 'javascript'
+              ? 'javascript'
+              : 'python'
+        }
         value={code}
         onChange={(val) => setCode(val ?? '')}
         theme="vs-dark"
@@ -67,7 +82,7 @@ export function CodeEditor({ lesson }: Props) {
 
       {result && <OutputPanel result={result} />}
     </div>
-  );
+  )
 }
 
 const editorBtnStyle: React.CSSProperties = {
@@ -79,4 +94,4 @@ const editorBtnStyle: React.CSSProperties = {
   borderRadius: 5,
   cursor: 'pointer',
   fontFamily: 'inherit',
-};
+}

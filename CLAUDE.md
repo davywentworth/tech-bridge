@@ -24,8 +24,8 @@ cd frontend && npm run dev  # port 5173
 
 ```ts
 // Correct import pattern:
-import sqlite3wasm from 'node-sqlite3-wasm';
-const { Database } = sqlite3wasm as any;
+import sqlite3wasm from 'node-sqlite3-wasm'
+const { Database } = sqlite3wasm as any
 ```
 
 ## Claude SDK
@@ -37,28 +37,38 @@ const { Database } = sqlite3wasm as any;
 ## LLM Integration
 
 ### Curriculum generation
+
 - **System**: "You are an expert programming teacher who teaches developers their next technology by mapping it to what they already know. Always output valid JSON."
 - **User**: "Generate a curriculum teaching `{targetTech}` to someone who already knows `{knownTech}`. Include 4-6 modules, each with 3-5 lessons. Output JSON matching the Curriculum schema."
 
 ### Lesson content generation
+
 - **System**: Same as above.
 - **User**: "Generate the full lesson content for: `{lessonTitle}` in a course teaching `{targetTech}` to someone who knows `{knownTech}`. Include side-by-side code examples showing the old way ({knownTech}) and new way ({targetTech}), a hands-on exercise with starter code and solution."
 
 ## API Routes
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/course/generate` | Generate curriculum |
-| GET | `/api/course/:id` | Get saved curriculum |
-| POST | `/api/lesson/generate` | Generate lesson content |
-| POST | `/api/code` | Execute code (JS/TS/Python) |
-| GET/PUT | `/api/progress/:courseId` | Lesson progress |
+| Method  | Path                      | Description                 |
+| ------- | ------------------------- | --------------------------- |
+| POST    | `/api/course/generate`    | Generate curriculum         |
+| GET     | `/api/course/:id`         | Get saved curriculum        |
+| POST    | `/api/lesson/generate`    | Generate lesson content     |
+| POST    | `/api/code`               | Execute code (JS/TS/Python) |
+| GET/PUT | `/api/progress/:courseId` | Lesson progress             |
 
 ### Code execution request/response
+
 ```ts
 // POST /api/code
-body:     { code: string; language: 'typescript' | 'javascript' | 'python' }
-response: { stdout: string; stderr: string; exitCode: number }
+body: {
+  code: string
+  language: 'typescript' | 'javascript' | 'python'
+}
+response: {
+  stdout: string
+  stderr: string
+  exitCode: number
+}
 ```
 
 Executor: write to `os.tmpdir()` → spawn `node` (JS) or `tsx` (TS) → 10s timeout → clean up.
@@ -66,6 +76,7 @@ Executor: write to `os.tmpdir()` → spawn `node` (JS) or `tsx` (TS) → 10s tim
 ## Data Model
 
 ### `courses` table
+
 ```sql
 id TEXT PRIMARY KEY,
 known_tech TEXT,
@@ -75,6 +86,7 @@ created_at INTEGER
 ```
 
 ### `progress` table
+
 ```sql
 course_id TEXT,
 lesson_id TEXT,
@@ -84,33 +96,34 @@ PRIMARY KEY (course_id, lesson_id)
 ```
 
 ### TypeScript types
+
 ```ts
 type Curriculum = {
-  id: string;
-  knownTech: string;
-  targetTech: string;
-  description: string;
-  modules: Module[];
+  id: string
+  knownTech: string
+  targetTech: string
+  description: string
+  modules: Module[]
 }
 
 type Module = {
-  id: string;
-  title: string;
-  lessons: LessonMeta[];
+  id: string
+  title: string
+  lessons: LessonMeta[]
 }
 
-type LessonMeta = { id: string; title: string; }
+type LessonMeta = { id: string; title: string }
 
 type Lesson = {
-  id: string;
-  title: string;
-  explanation: string;     // markdown
-  knownWayCode: string;    // X approach
-  targetWayCode: string;   // Y approach
-  exercise: string;        // markdown prompt
-  starterCode: string;
-  solutionCode: string;
-  language: string;        // 'typescript' | 'javascript' | etc.
+  id: string
+  title: string
+  explanation: string // markdown
+  knownWayCode: string // X approach
+  targetWayCode: string // Y approach
+  exercise: string // markdown prompt
+  starterCode: string
+  solutionCode: string
+  language: string // 'typescript' | 'javascript' | etc.
 }
 ```
 
@@ -130,6 +143,42 @@ frontend/src/
   components/ CourseSetup, CurriculumView, LessonView, CodeEditor, OutputPanel, ViewToggle
   pages/      HomePage, CurriculumPage, LessonPage
 ```
+
+## Code Style
+
+Enforced by Prettier + ESLint with pre-commit hooks (husky + lint-staged) and CI.
+
+### Formatting (Prettier)
+
+- **No semicolons** (`semi: false`)
+- Single quotes (`singleQuote: true`)
+- 2-space indentation
+- Trailing commas where valid in ES5 (`trailingComma: 'es5'`)
+- Max line width: 100 characters
+
+### Linting (ESLint)
+
+- TypeScript strict mode + `noUnusedLocals` + `noUnusedParameters`
+- Frontend: `react-hooks` + `react-refresh` rules
+- Backend: node globals, no React rules
+- `no-explicit-any` is **off** for `db.ts`/`db.test.ts` (required by the WASM import pattern)
+
+### Running checks
+
+```bash
+cd frontend && npm run lint        # ESLint
+cd frontend && npm run format:check  # Prettier check
+cd backend && npm run lint
+cd backend && npm run format:check
+```
+
+### Pre-commit
+
+Staged files are auto-formatted by Prettier (lint-staged). ESLint runs on the full codebase for both packages.
+
+### CI
+
+GitHub Actions runs lint + format:check + tests on every push to main and every PR.
 
 ## User Flow
 

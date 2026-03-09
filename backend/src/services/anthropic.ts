@@ -1,15 +1,15 @@
-import Anthropic from '@anthropic-ai/sdk';
-import type { Curriculum, Lesson } from '../types.js';
+import Anthropic from '@anthropic-ai/sdk'
+import type { Curriculum, Lesson } from '../types.js'
 
-let client: Anthropic;
+let client: Anthropic
 function getClient() {
-  if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  return client;
+  if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  return client
 }
-const MODEL = 'claude-opus-4-6';
+const MODEL = 'claude-opus-4-6'
 
 const SYSTEM_PROMPT =
-  'You are an expert programming teacher who teaches developers their next technology by mapping it to what they already know. Always output valid JSON only, with no markdown fences or extra text.';
+  'You are an expert programming teacher who teaches developers their next technology by mapping it to what they already know. Always output valid JSON only, with no markdown fences or extra text.'
 
 const CURRICULUM_SCHEMA = `{
   "id": "string (uuid)",
@@ -25,7 +25,7 @@ const CURRICULUM_SCHEMA = `{
       ]
     }
   ]
-}`;
+}`
 
 const LESSON_SCHEMA = (knownTech: string, targetTech: string) => `{
   "id": "string (uuid)",
@@ -37,9 +37,12 @@ const LESSON_SCHEMA = (knownTech: string, targetTech: string) => `{
   "starterCode": "string (starter code for the exercise)",
   "solutionCode": "string (complete solution)",
   "language": "string (typescript | javascript | python)"
-}`;
+}`
 
-export async function generateCurriculum(knownTech: string, targetTech: string): Promise<Curriculum> {
+export async function generateCurriculum(
+  knownTech: string,
+  targetTech: string
+): Promise<Curriculum> {
   const stream = getClient().messages.stream({
     model: MODEL,
     max_tokens: 4096,
@@ -67,11 +70,11 @@ export async function generateCurriculum(knownTech: string, targetTech: string):
         ],
       },
     ],
-  });
+  })
 
-  const response = await stream.finalMessage();
-  const text = response.content.find((b) => b.type === 'text')?.text ?? '';
-  return JSON.parse(text) as Curriculum;
+  const response = await stream.finalMessage()
+  const text = response.content.find((b) => b.type === 'text')?.text ?? ''
+  return JSON.parse(text) as Curriculum
 }
 
 export async function generateLesson(
@@ -106,9 +109,9 @@ export async function generateLesson(
         ],
       },
     ],
-  });
+  })
 
-  const response = await stream.finalMessage();
-  const text = response.content.find((b) => b.type === 'text')?.text ?? '';
-  return JSON.parse(text) as Lesson;
+  const response = await stream.finalMessage()
+  const text = response.content.find((b) => b.type === 'text')?.text ?? ''
+  return JSON.parse(text) as Lesson
 }
