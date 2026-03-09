@@ -59,71 +59,81 @@ describe('CodeEditor', () => {
   });
 
   it('replaces editor content with solution code when "Show Solution" is clicked', async () => {
+    const user = userEvent.setup();
     render(<CodeEditor lesson={lesson} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Show Solution' }));
+    await user.click(screen.getByRole('button', { name: 'Show Solution' }));
     expect(screen.getByTestId('monaco-editor')).toHaveValue('// solution');
   });
 
   it('hides the "Show Solution" button after it is clicked', async () => {
+    const user = userEvent.setup();
     render(<CodeEditor lesson={lesson} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Show Solution' }));
+    await user.click(screen.getByRole('button', { name: 'Show Solution' }));
     expect(screen.queryByRole('button', { name: 'Show Solution' })).not.toBeInTheDocument();
   });
 
   it('calls runCode with the current code and lesson details when Run is clicked', async () => {
+    const user = userEvent.setup();
     render(<CodeEditor lesson={lesson} />);
-    await userEvent.click(screen.getByRole('button', { name: '▶ Run' }));
+    await user.click(screen.getByRole('button', { name: '▶ Run' }));
     expect(mockRunCode).toHaveBeenCalledWith('// starter', 'javascript', 'createSlice basics');
   });
 
   it('runs the code the user typed rather than the original starter code', async () => {
+    const user = userEvent.setup();
     render(<CodeEditor lesson={lesson} />);
-    await userEvent.clear(screen.getByTestId('monaco-editor'));
-    await userEvent.type(screen.getByTestId('monaco-editor'), 'console.log(42)');
-    await userEvent.click(screen.getByRole('button', { name: '▶ Run' }));
+    await user.clear(screen.getByTestId('monaco-editor'));
+    await user.type(screen.getByTestId('monaco-editor'), 'console.log(42)');
+    await user.click(screen.getByRole('button', { name: '▶ Run' }));
     expect(mockRunCode).toHaveBeenCalledWith('console.log(42)', 'javascript', 'createSlice basics');
   });
 
   it('disables the Run button while code is executing', async () => {
+    const user = userEvent.setup();
     let resolve: (val: { stdout: string; stderr: string; exitCode: number }) => void;
     mockRunCode.mockReturnValue(new Promise((r) => { resolve = r; }));
     render(<CodeEditor lesson={lesson} />);
-    await userEvent.click(screen.getByRole('button', { name: '▶ Run' }));
+    await user.click(screen.getByRole('button', { name: '▶ Run' }));
     expect(screen.getByRole('button', { name: 'Running…' })).toBeDisabled();
     await act(async () => { resolve({ stdout: '', stderr: '', exitCode: 0 }); });
   });
 
   it('shows output panel with stdout after a successful run', async () => {
+    const user = userEvent.setup();
     mockRunCode.mockResolvedValue({ stdout: 'hello', stderr: '', exitCode: 0 });
     render(<CodeEditor lesson={lesson} />);
-    await userEvent.click(screen.getByRole('button', { name: '▶ Run' }));
+    await user.click(screen.getByRole('button', { name: '▶ Run' }));
     await waitFor(() => expect(screen.getByText('hello')).toBeInTheDocument());
   });
 
   it('shows output panel with stderr when execution fails', async () => {
+    const user = userEvent.setup();
     mockRunCode.mockResolvedValue({ stdout: '', stderr: 'ReferenceError: x is not defined', exitCode: 1 });
     render(<CodeEditor lesson={lesson} />);
-    await userEvent.click(screen.getByRole('button', { name: '▶ Run' }));
+    await user.click(screen.getByRole('button', { name: '▶ Run' }));
     await waitFor(() => expect(screen.getByText('ReferenceError: x is not defined')).toBeInTheDocument());
   });
 
   it('shows a caught error in the output panel if runCode throws', async () => {
+    const user = userEvent.setup();
     mockRunCode.mockRejectedValue(new Error('Network error'));
     render(<CodeEditor lesson={lesson} />);
-    await userEvent.click(screen.getByRole('button', { name: '▶ Run' }));
+    await user.click(screen.getByRole('button', { name: '▶ Run' }));
     await waitFor(() => expect(screen.getByText('Error: Network error')).toBeInTheDocument());
   });
 
   it('re-enables the Run button after execution completes', async () => {
+    const user = userEvent.setup();
     render(<CodeEditor lesson={lesson} />);
-    await userEvent.click(screen.getByRole('button', { name: '▶ Run' }));
+    await user.click(screen.getByRole('button', { name: '▶ Run' }));
     await waitFor(() => expect(screen.getByRole('button', { name: '▶ Run' })).not.toBeDisabled());
   });
 
   it('runs the solution code (not the starter) after clicking Show Solution then Run', async () => {
+    const user = userEvent.setup();
     render(<CodeEditor lesson={lesson} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Show Solution' }));
-    await userEvent.click(screen.getByRole('button', { name: '▶ Run' }));
+    await user.click(screen.getByRole('button', { name: 'Show Solution' }));
+    await user.click(screen.getByRole('button', { name: '▶ Run' }));
     expect(mockRunCode).toHaveBeenCalledWith('// solution', 'javascript', 'createSlice basics');
   });
 });

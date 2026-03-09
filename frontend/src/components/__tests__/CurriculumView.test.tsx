@@ -99,6 +99,7 @@ describe('CurriculumView', () => {
   });
 
   it('calls onSelectLesson with the correct module id, lesson id and title when a lesson is clicked', async () => {
+    const user = userEvent.setup();
     const onSelectLesson = vi.fn();
     render(
       <CurriculumView
@@ -107,7 +108,7 @@ describe('CurriculumView', () => {
         onSelectLesson={onSelectLesson}
       />
     );
-    await userEvent.click(screen.getByRole('button', { name: /createslice/i }));
+    await user.click(screen.getByRole('button', { name: /createslice/i }));
     expect(onSelectLesson).toHaveBeenCalledWith('m1', 'l2', 'createSlice');
   });
 

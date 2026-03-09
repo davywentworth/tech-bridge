@@ -12,7 +12,7 @@ vi.mock('react-syntax-highlighter/dist/esm/styles/prism', () => ({
   vscDarkPlus: {},
 }));
 
-// Monaco doesn't run in jsdom/happy-dom
+// Monaco doesn't run in happy-dom
 vi.mock('@monaco-editor/react', () => ({
   default: ({ value, onChange }: { value: string; onChange: (val: string) => void }) => (
     <textarea data-testid="monaco-editor" value={value} onChange={(e) => onChange(e.target.value)} />
@@ -75,16 +75,18 @@ describe('LessonView', () => {
   });
 
   it('calls onMarkComplete with true when marking an incomplete lesson complete', async () => {
+    const user = userEvent.setup();
     const onMarkComplete = vi.fn();
     renderLesson({ onMarkComplete });
-    await userEvent.click(screen.getByRole('button', { name: 'Mark Complete' }));
+    await user.click(screen.getByRole('button', { name: 'Mark Complete' }));
     expect(onMarkComplete).toHaveBeenCalledWith(true);
   });
 
   it('calls onMarkComplete with false when un-marking a completed lesson', async () => {
+    const user = userEvent.setup();
     const onMarkComplete = vi.fn();
     renderLesson({ isCompleted: true, onMarkComplete });
-    await userEvent.click(screen.getByRole('button', { name: '✓ Completed' }));
+    await user.click(screen.getByRole('button', { name: '✓ Completed' }));
     expect(onMarkComplete).toHaveBeenCalledWith(false);
   });
 
@@ -111,14 +113,16 @@ describe('LessonView', () => {
   });
 
   it('shows the transition arrow in sequential mode', async () => {
+    const user = userEvent.setup();
     renderLesson();
-    await userEvent.click(screen.getByRole('button', { name: 'Sequential' }));
+    await user.click(screen.getByRole('button', { name: 'Sequential' }));
     expect(screen.getByText(/In Redux Toolkit, this becomes:/)).toBeInTheDocument();
   });
 
   it('uses descriptive labels in sequential mode', async () => {
+    const user = userEvent.setup();
     renderLesson();
-    await userEvent.click(screen.getByRole('button', { name: 'Sequential' }));
+    await user.click(screen.getByRole('button', { name: 'Sequential' }));
     expect(screen.getByText(/The Redux way \(what you know\)/)).toBeInTheDocument();
     expect(screen.getByText(/The Redux Toolkit way \(what you're learning\)/)).toBeInTheDocument();
   });
