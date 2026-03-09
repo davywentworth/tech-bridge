@@ -6,5 +6,9 @@ export default defineConfig({
     // Route tests use the real on-disk db via the singleton in db.ts — parallel file execution
     // causes "database is locked" errors.
     fileParallelism: false,
+    coverage: {
+      provider: 'v8',
+      exclude: ['src/services/anthropic.ts'],
+    },
   },
 });
