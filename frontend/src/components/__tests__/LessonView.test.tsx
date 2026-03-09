@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
 import { LessonView } from '../LessonView'
@@ -129,5 +129,102 @@ describe('LessonView', () => {
     await user.click(screen.getByRole('button', { name: 'Sequential' }))
     expect(screen.getByText(/The Redux way \(what you know\)/)).toBeInTheDocument()
     expect(screen.getByText(/The Redux Toolkit way \(what you're learning\)/)).toBeInTheDocument()
+  })
+
+  it('shows a scroll lock toggle button in side-by-side mode, defaulting to locked', () => {
+    renderLesson()
+    expect(screen.getByRole('button', { name: 'Scroll locked' })).toBeInTheDocument()
+  })
+
+  it('does not show the scroll lock toggle button in sequential mode', async () => {
+    const user = userEvent.setup()
+    renderLesson()
+    await user.click(screen.getByRole('button', { name: 'Sequential' }))
+    expect(screen.queryByRole('button', { name: /Scroll/ })).not.toBeInTheDocument()
+  })
+
+  it('unlocks scroll when clicking the locked button', async () => {
+    const user = userEvent.setup()
+    renderLesson()
+    await user.click(screen.getByRole('button', { name: 'Scroll locked' }))
+    expect(screen.getByRole('button', { name: 'Scroll unlocked' })).toBeInTheDocument()
+  })
+
+  it('re-locks scroll when clicking the unlocked button', async () => {
+    const user = userEvent.setup()
+    renderLesson()
+    await user.click(screen.getByRole('button', { name: 'Scroll locked' }))
+    await user.click(screen.getByRole('button', { name: 'Scroll unlocked' }))
+    expect(screen.getByRole('button', { name: 'Scroll locked' })).toBeInTheDocument()
+  })
+
+  it('mirrors left panel scroll position to right panel when scroll-locked', () => {
+    renderLesson()
+    const leftPanel = screen.getByTestId('left-scroll-panel')
+    const rightPanel = screen.getByTestId('right-scroll-panel')
+
+    Object.defineProperty(leftPanel, 'scrollTop', { value: 120, writable: true })
+    Object.defineProperty(rightPanel, 'scrollTop', { value: 0, writable: true })
+    fireEvent.scroll(leftPanel)
+
+    expect(rightPanel.scrollTop).toBe(120)
+  })
+
+  it('mirrors right panel scroll position to left panel when scroll-locked', () => {
+    renderLesson()
+    const leftPanel = screen.getByTestId('left-scroll-panel')
+    const rightPanel = screen.getByTestId('right-scroll-panel')
+
+    Object.defineProperty(leftPanel, 'scrollTop', { value: 0, writable: true })
+    Object.defineProperty(rightPanel, 'scrollTop', { value: 80, writable: true })
+    fireEvent.scroll(rightPanel)
+
+    expect(leftPanel.scrollTop).toBe(80)
+  })
+
+  it('does not sync scroll positions when scroll is unlocked', async () => {
+    const user = userEvent.setup()
+    renderLesson()
+    await user.click(screen.getByRole('button', { name: 'Scroll locked' }))
+
+    const leftPanel = screen.getByTestId('left-scroll-panel')
+    const rightPanel = screen.getByTestId('right-scroll-panel')
+
+    // Right panel starts at a known non-zero position; if sync runs, it would change
+    Object.defineProperty(rightPanel, 'scrollTop', { value: 50, writable: true })
+    Object.defineProperty(leftPanel, 'scrollTop', { value: 200, writable: true })
+    fireEvent.scroll(leftPanel)
+
+    expect(rightPanel.scrollTop).toBe(50)
+  })
+
+  it('snaps right panel to left panel position when re-locking', async () => {
+    const user = userEvent.setup()
+    renderLesson()
+
+    await user.click(screen.getByRole('button', { name: 'Scroll locked' }))
+    const leftPanel = screen.getByTestId('left-scroll-panel')
+    const rightPanel = screen.getByTestId('right-scroll-panel')
+
+    // Panels are at different scroll positions while unlocked
+    Object.defineProperty(leftPanel, 'scrollTop', { value: 150, writable: true })
+    Object.defineProperty(rightPanel, 'scrollTop', { value: 50, writable: true })
+
+    await user.click(screen.getByRole('button', { name: 'Scroll unlocked' }))
+
+    expect(rightPanel.scrollTop).toBe(150)
+  })
+
+  it('restores scroll lock to locked state when switching back to side-by-side mode', async () => {
+    const user = userEvent.setup()
+    renderLesson()
+
+    // Unlock, switch to sequential, switch back — lock should be reset to locked
+    await user.click(screen.getByRole('button', { name: 'Scroll locked' }))
+    expect(screen.getByRole('button', { name: 'Scroll unlocked' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Sequential' }))
+    await user.click(screen.getByRole('button', { name: 'Side by Side' }))
+    expect(screen.getByRole('button', { name: 'Scroll locked' })).toBeInTheDocument()
   })
 })
