@@ -11,60 +11,65 @@ describe('CourseSetup', () => {
   });
 
   it('calls onGenerate with the current input values on submit', async () => {
+    const user = userEvent.setup();
     const onGenerate = vi.fn();
     render(<CourseSetup onGenerate={onGenerate} loading={false} error={null} />);
 
     const knownInput = screen.getByPlaceholderText('e.g. Redux');
     const teachInput = screen.getByPlaceholderText('e.g. Redux Toolkit');
 
-    await userEvent.clear(knownInput);
-    await userEvent.type(knownInput, 'Vue');
-    await userEvent.clear(teachInput);
-    await userEvent.type(teachInput, 'React');
+    await user.clear(knownInput);
+    await user.type(knownInput, 'Vue');
+    await user.clear(teachInput);
+    await user.type(teachInput, 'React');
 
-    await userEvent.click(screen.getByRole('button', { name: /generate curriculum/i }));
+    await user.click(screen.getByRole('button', { name: /generate curriculum/i }));
     expect(onGenerate).toHaveBeenCalledWith('Vue', 'React');
   });
 
   it('trims whitespace from inputs before calling onGenerate', async () => {
+    const user = userEvent.setup();
     const onGenerate = vi.fn();
     render(<CourseSetup onGenerate={onGenerate} loading={false} error={null} />);
 
     const knownInput = screen.getByPlaceholderText('e.g. Redux');
-    await userEvent.clear(knownInput);
-    await userEvent.type(knownInput, '  MobX  ');
+    await user.clear(knownInput);
+    await user.type(knownInput, '  MobX  ');
 
-    await userEvent.click(screen.getByRole('button', { name: /generate curriculum/i }));
+    await user.click(screen.getByRole('button', { name: /generate curriculum/i }));
     expect(onGenerate).toHaveBeenCalledWith('MobX', 'Redux Toolkit');
   });
 
   it('does not call onGenerate when the "I know" field is whitespace only', async () => {
+    const user = userEvent.setup();
     const onGenerate = vi.fn();
     render(<CourseSetup onGenerate={onGenerate} loading={false} error={null} />);
 
     const knownInput = screen.getByPlaceholderText('e.g. Redux');
-    await userEvent.clear(knownInput);
-    await userEvent.type(knownInput, '   ');
+    await user.clear(knownInput);
+    await user.type(knownInput, '   ');
 
-    await userEvent.click(screen.getByRole('button', { name: /generate curriculum/i }));
+    await user.click(screen.getByRole('button', { name: /generate curriculum/i }));
     expect(onGenerate).not.toHaveBeenCalled();
   });
 
   it('does not call onGenerate when the "I know" field is empty', async () => {
+    const user = userEvent.setup();
     const onGenerate = vi.fn();
     render(<CourseSetup onGenerate={onGenerate} loading={false} error={null} />);
 
-    await userEvent.clear(screen.getByPlaceholderText('e.g. Redux'));
-    await userEvent.click(screen.getByRole('button', { name: /generate curriculum/i }));
+    await user.clear(screen.getByPlaceholderText('e.g. Redux'));
+    await user.click(screen.getByRole('button', { name: /generate curriculum/i }));
     expect(onGenerate).not.toHaveBeenCalled();
   });
 
   it('does not call onGenerate when the "Teach me" field is empty', async () => {
+    const user = userEvent.setup();
     const onGenerate = vi.fn();
     render(<CourseSetup onGenerate={onGenerate} loading={false} error={null} />);
 
-    await userEvent.clear(screen.getByPlaceholderText('e.g. Redux Toolkit'));
-    await userEvent.click(screen.getByRole('button', { name: /generate curriculum/i }));
+    await user.clear(screen.getByPlaceholderText('e.g. Redux Toolkit'));
+    await user.click(screen.getByRole('button', { name: /generate curriculum/i }));
     expect(onGenerate).not.toHaveBeenCalled();
   });
 
@@ -78,9 +83,10 @@ describe('CourseSetup', () => {
     expect(screen.getByRole('button', { name: /generating curriculum/i })).toBeInTheDocument();
   });
 
-  it('disables inputs while loading', () => {
+  it('disables both inputs while loading', () => {
     render(<CourseSetup onGenerate={vi.fn()} loading={true} error={null} />);
     const inputs = screen.getAllByRole('textbox');
+    expect(inputs).toHaveLength(2);
     inputs.forEach((input) => expect(input).toBeDisabled());
   });
 

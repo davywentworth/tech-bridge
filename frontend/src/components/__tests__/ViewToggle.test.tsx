@@ -25,16 +25,18 @@ describe('ViewToggle', () => {
   });
 
   it('calls onChange with "sequential" when that button is clicked', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     render(<ViewToggle mode="sidebyside" onChange={onChange} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Sequential' }));
+    await user.click(screen.getByRole('button', { name: 'Sequential' }));
     expect(onChange).toHaveBeenCalledWith('sequential');
   });
 
   it('calls onChange with "sidebyside" when that button is clicked', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     render(<ViewToggle mode="sequential" onChange={onChange} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Side by Side' }));
+    await user.click(screen.getByRole('button', { name: 'Side by Side' }));
     expect(onChange).toHaveBeenCalledWith('sidebyside');
   });
 });
