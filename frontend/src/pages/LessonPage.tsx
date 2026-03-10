@@ -23,7 +23,13 @@ export function LessonPage() {
     if (!curriculum || !state?.lessonTitle) return
     setLoading(true)
     setError(null)
-    generateLesson(curriculum.knownTech, curriculum.targetTech, state.lessonTitle)
+    generateLesson(
+      curriculum.knownTech,
+      curriculum.targetTech,
+      state.lessonTitle,
+      courseId ?? '',
+      lessonId ?? ''
+    )
       .then(setLesson)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))

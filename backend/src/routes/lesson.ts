@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { generateLesson } from '../services/anthropic.js'
+import { getLesson, saveLesson } from '../services/db.js'
 
 const router = Router()
 
@@ -8,6 +9,8 @@ const GenerateLessonSchema = z.object({
   knownTech: z.string().min(1),
   targetTech: z.string().min(1),
   lessonTitle: z.string().min(1),
+  courseId: z.string().min(1),
+  lessonId: z.string().min(1),
 })
 
 router.post('/generate', async (req, res) => {
@@ -17,10 +20,17 @@ router.post('/generate', async (req, res) => {
     return
   }
 
-  const { knownTech, targetTech, lessonTitle } = parsed.data
+  const { knownTech, targetTech, lessonTitle, courseId, lessonId } = parsed.data
 
   try {
+    const cached = getLesson(courseId, lessonId)
+    if (cached) {
+      res.json(cached)
+      return
+    }
+
     const lesson = await generateLesson(knownTech, targetTech, lessonTitle)
+    saveLesson(courseId, lessonId, lesson)
     res.json(lesson)
   } catch (err) {
     console.error('Lesson generation error:', err)

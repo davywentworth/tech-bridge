@@ -19,11 +19,17 @@ export async function getCourse(id: string): Promise<Curriculum> {
   return data.curriculum ?? data
 }
 
-export async function generateLesson(knownTech: string, targetTech: string, lessonTitle: string) {
+export async function generateLesson(
+  knownTech: string,
+  targetTech: string,
+  lessonTitle: string,
+  courseId: string,
+  lessonId: string
+) {
   const res = await fetch(`${BASE}/lesson/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ knownTech, targetTech, lessonTitle }),
+    body: JSON.stringify({ knownTech, targetTech, lessonTitle, courseId, lessonId }),
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
