@@ -1,6 +1,11 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll } from 'vitest'
 import request from 'supertest'
 import app from '../app.js'
+import { resetDb } from '../services/db.js'
+
+beforeAll(() => {
+  resetDb()
+})
 
 // Each test uses a unique courseId to avoid interference with other tests or the real database.
 let idCounter = 0
