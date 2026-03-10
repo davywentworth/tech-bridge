@@ -8,9 +8,10 @@ const { Database } = sqlite3wasm as any
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DB_PATH = path.join(__dirname, '../../data/techbridge.db')
 
-// Use an in-memory database when running under Vitest so each test file gets its own
-// isolated DB instance. process.env.VITEST is set to 'true' by Vitest regardless of
-// NODE_ENV, making it a reliable way to detect the test environment.
+// Use an in-memory database when running under Vitest. process.env.VITEST is set to 'true'
+// by Vitest regardless of NODE_ENV, making it a reliable way to detect the test environment.
+// The DB is a module-level singleton shared across all test files — call resetDb() in
+// beforeAll() in each test file to ensure per-file isolation.
 const isTest = process.env.VITEST === 'true'
 if (!isTest) {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
@@ -129,6 +130,16 @@ export function getLesson(courseId: string, lessonId: string, database: any = db
     lessonId,
   ])
   return row ? JSON.parse(row.content) : null
+}
+
+export function resetDb(database: any = db): void {
+  if (!isTest) throw new Error('resetDb is only available in test environments')
+  database.exec(`
+    DROP TABLE IF EXISTS courses;
+    DROP TABLE IF EXISTS lessons;
+    DROP TABLE IF EXISTS progress;
+  `)
+  initSchema(database)
 }
 
 export default db

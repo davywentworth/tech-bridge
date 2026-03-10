@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import request from 'supertest'
 import app from '../app.js'
-import { saveCourse } from '../services/db.js'
+import { saveCourse, resetDb } from '../services/db.js'
 
 vi.mock('../services/anthropic.js', () => ({
   generateCurriculum: vi.fn(),
@@ -23,6 +23,10 @@ const mockCurriculum = {
     },
   ],
 }
+
+beforeAll(() => {
+  resetDb()
+})
 
 beforeEach(() => {
   vi.clearAllMocks()

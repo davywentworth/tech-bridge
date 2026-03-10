@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import request from 'supertest'
 import app from '../app.js'
-import { saveLesson, getLesson } from '../services/db.js'
+import { saveLesson, getLesson, resetDb } from '../services/db.js'
 import db from '../services/db.js'
 
 vi.mock('../services/anthropic.js', () => ({
@@ -30,6 +30,10 @@ const validBody = {
   courseId: 'course-1',
   lessonId: 'lesson-uuid-1',
 }
+
+beforeAll(() => {
+  resetDb()
+})
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -148,8 +152,8 @@ describe('POST /api/lesson/generate', () => {
     expect(generateLesson).not.toHaveBeenCalled()
   })
 
-  it('does not overwrite the cached lesson on a cache hit', async () => {
-    // Seed the cache and record the timestamp to verify the row is not re-written
+  it('route returns early on a cache hit — the existing DB row is not re-written', async () => {
+    // Seed the cache and record the timestamp to verify the route never calls saveLesson
     saveLesson('no-overwrite-course', 'no-overwrite-lesson', mockLesson)
     const before = db.get('SELECT created_at FROM lessons WHERE course_id = ? AND lesson_id = ?', [
       'no-overwrite-course',
