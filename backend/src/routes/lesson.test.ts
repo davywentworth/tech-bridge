@@ -1,6 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import request from 'supertest'
 import app from '../app.js'
+import { saveLesson, getLesson, resetDb } from '../services/db.js'
+import db from '../services/db.js'
 
 vi.mock('../services/anthropic.js', () => ({
   generateCurriculum: vi.fn(),
@@ -21,15 +23,30 @@ const mockLesson = {
   language: 'javascript',
 }
 
+const validBody = {
+  knownTech: 'Redux',
+  targetTech: 'Redux Toolkit',
+  lessonTitle: 'createSlice',
+  courseId: 'course-1',
+  lessonId: 'lesson-uuid-1',
+}
+
+beforeAll(() => {
+  resetDb()
+})
+
 beforeEach(() => {
   vi.clearAllMocks()
 })
 
 describe('POST /api/lesson/generate', () => {
   it('returns 400 when knownTech is missing', async () => {
-    const res = await request(app)
-      .post('/api/lesson/generate')
-      .send({ targetTech: 'Redux Toolkit', lessonTitle: 'createSlice' })
+    const res = await request(app).post('/api/lesson/generate').send({
+      targetTech: 'Redux Toolkit',
+      lessonTitle: 'createSlice',
+      courseId: 'c1',
+      lessonId: 'l1',
+    })
 
     expect(res.status).toBe(400)
     expect(res.body).toHaveProperty('error')
@@ -38,7 +55,7 @@ describe('POST /api/lesson/generate', () => {
   it('returns 400 when targetTech is missing', async () => {
     const res = await request(app)
       .post('/api/lesson/generate')
-      .send({ knownTech: 'Redux', lessonTitle: 'createSlice' })
+      .send({ knownTech: 'Redux', lessonTitle: 'createSlice', courseId: 'c1', lessonId: 'l1' })
 
     expect(res.status).toBe(400)
     expect(res.body).toHaveProperty('error')
@@ -47,7 +64,31 @@ describe('POST /api/lesson/generate', () => {
   it('returns 400 when lessonTitle is missing', async () => {
     const res = await request(app)
       .post('/api/lesson/generate')
-      .send({ knownTech: 'Redux', targetTech: 'Redux Toolkit' })
+      .send({ knownTech: 'Redux', targetTech: 'Redux Toolkit', courseId: 'c1', lessonId: 'l1' })
+
+    expect(res.status).toBe(400)
+    expect(res.body).toHaveProperty('error')
+  })
+
+  it('returns 400 when courseId is missing', async () => {
+    const res = await request(app).post('/api/lesson/generate').send({
+      knownTech: 'Redux',
+      targetTech: 'Redux Toolkit',
+      lessonTitle: 'createSlice',
+      lessonId: 'l1',
+    })
+
+    expect(res.status).toBe(400)
+    expect(res.body).toHaveProperty('error')
+  })
+
+  it('returns 400 when lessonId is missing', async () => {
+    const res = await request(app).post('/api/lesson/generate').send({
+      knownTech: 'Redux',
+      targetTech: 'Redux Toolkit',
+      lessonTitle: 'createSlice',
+      courseId: 'c1',
+    })
 
     expect(res.status).toBe(400)
     expect(res.body).toHaveProperty('error')
@@ -56,7 +97,7 @@ describe('POST /api/lesson/generate', () => {
   it('returns 400 when knownTech is an empty string', async () => {
     const res = await request(app)
       .post('/api/lesson/generate')
-      .send({ knownTech: '', targetTech: 'Redux Toolkit', lessonTitle: 'createSlice' })
+      .send({ ...validBody, knownTech: '' })
 
     expect(res.status).toBe(400)
     expect(res.body).toHaveProperty('error')
@@ -65,7 +106,7 @@ describe('POST /api/lesson/generate', () => {
   it('returns 400 when targetTech is an empty string', async () => {
     const res = await request(app)
       .post('/api/lesson/generate')
-      .send({ knownTech: 'Redux', targetTech: '', lessonTitle: 'createSlice' })
+      .send({ ...validBody, targetTech: '' })
 
     expect(res.status).toBe(400)
     expect(res.body).toHaveProperty('error')
@@ -74,48 +115,156 @@ describe('POST /api/lesson/generate', () => {
   it('returns 400 when lessonTitle is an empty string', async () => {
     const res = await request(app)
       .post('/api/lesson/generate')
-      .send({ knownTech: 'Redux', targetTech: 'Redux Toolkit', lessonTitle: '' })
+      .send({ ...validBody, lessonTitle: '' })
 
     expect(res.status).toBe(400)
     expect(res.body).toHaveProperty('error')
   })
 
-  it('calls generateLesson with knownTech, targetTech, and lessonTitle', async () => {
-    vi.mocked(generateLesson).mockResolvedValue(mockLesson)
-
-    await request(app)
+  it('returns 400 when courseId is an empty string', async () => {
+    const res = await request(app)
       .post('/api/lesson/generate')
-      .send({ knownTech: 'Redux', targetTech: 'Redux Toolkit', lessonTitle: 'createSlice' })
+      .send({ ...validBody, courseId: '' })
 
-    expect(generateLesson).toHaveBeenCalledWith('Redux', 'Redux Toolkit', 'createSlice')
+    expect(res.status).toBe(400)
+    expect(res.body).toHaveProperty('error')
   })
 
-  it('returns the generated lesson', async () => {
-    vi.mocked(generateLesson).mockResolvedValue(mockLesson)
+  it('returns 400 when lessonId is an empty string', async () => {
+    const res = await request(app)
+      .post('/api/lesson/generate')
+      .send({ ...validBody, lessonId: '' })
+
+    expect(res.status).toBe(400)
+    expect(res.body).toHaveProperty('error')
+  })
+
+  it('returns the cached lesson without calling generateLesson on a cache hit', async () => {
+    // Seed the in-memory DB directly to set up the cached state
+    saveLesson('cached-course', 'cached-lesson', mockLesson)
 
     const res = await request(app)
       .post('/api/lesson/generate')
-      .send({ knownTech: 'Redux', targetTech: 'Redux Toolkit', lessonTitle: 'createSlice' })
+      .send({ ...validBody, courseId: 'cached-course', lessonId: 'cached-lesson' })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual(mockLesson)
+    expect(generateLesson).not.toHaveBeenCalled()
+  })
+
+  it('route returns early on a cache hit — the existing DB row is not re-written', async () => {
+    // Seed the cache and record the timestamp to verify the route never calls saveLesson
+    saveLesson('no-overwrite-course', 'no-overwrite-lesson', mockLesson)
+    const before = db.get('SELECT created_at FROM lessons WHERE course_id = ? AND lesson_id = ?', [
+      'no-overwrite-course',
+      'no-overwrite-lesson',
+    ])
+
+    await request(app)
+      .post('/api/lesson/generate')
+      .send({ ...validBody, courseId: 'no-overwrite-course', lessonId: 'no-overwrite-lesson' })
+
+    const after = db.get('SELECT created_at FROM lessons WHERE course_id = ? AND lesson_id = ?', [
+      'no-overwrite-course',
+      'no-overwrite-lesson',
+    ])
+    expect(after.created_at).toBe(before.created_at)
+  })
+
+  it('cache lookup uses both courseId and lessonId — requesting a different lessonId for the same courseId is a miss and returns newly generated content', async () => {
+    // Seed lesson-A with distinct content; lesson-B is NOT seeded
+    const lessonAContent = { ...mockLesson, title: 'Lesson A — only this is cached' }
+    saveLesson('composite-course', 'composite-lesson-A', lessonAContent)
+    vi.mocked(generateLesson).mockResolvedValue(mockLesson)
+
+    // Request lesson-B — if the key is handled correctly this is a miss and returns mockLesson
+    // If the route ignores lessonId it would return lessonAContent instead
+    const res = await request(app)
+      .post('/api/lesson/generate')
+      .send({ ...validBody, courseId: 'composite-course', lessonId: 'composite-lesson-B' })
 
     expect(res.status).toBe(200)
     expect(res.body).toEqual(mockLesson)
   })
 
-  it('returns 500 when lesson generation fails', async () => {
-    vi.mocked(generateLesson).mockRejectedValue(new Error('API error'))
+  it('cache lookup uses both courseId and lessonId — requesting a different courseId for the same lessonId is a miss and returns newly generated content', async () => {
+    // Seed course-X with distinct content; course-Y is NOT seeded
+    const courseXContent = { ...mockLesson, title: 'Course X — only this is cached' }
+    saveLesson('composite-course-X', 'shared-lesson', courseXContent)
+    vi.mocked(generateLesson).mockResolvedValue(mockLesson)
 
+    // Request course-Y — if the key is handled correctly this is a miss and returns mockLesson
+    // If the route ignores courseId it would return courseXContent instead
     const res = await request(app)
       .post('/api/lesson/generate')
-      .send({ knownTech: 'Redux', targetTech: 'Redux Toolkit', lessonTitle: 'createSlice' })
+      .send({ ...validBody, courseId: 'composite-course-Y', lessonId: 'shared-lesson' })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual(mockLesson)
+  })
+
+  it('calls generateLesson with knownTech, targetTech, and lessonTitle on a cache miss', async () => {
+    vi.mocked(generateLesson).mockResolvedValue(mockLesson)
+    // Use unique IDs to avoid hitting state seeded by other tests in this file
+    const body = {
+      ...validBody,
+      courseId: `miss-course-${Date.now()}-1`,
+      lessonId: `miss-lesson-${Date.now()}-1`,
+    }
+
+    await request(app).post('/api/lesson/generate').send(body)
+
+    expect(generateLesson).toHaveBeenCalledWith('Redux', 'Redux Toolkit', 'createSlice')
+  })
+
+  it('returns the generated lesson on a cache miss', async () => {
+    vi.mocked(generateLesson).mockResolvedValue(mockLesson)
+    // Use unique IDs to avoid hitting state seeded by other tests in this file
+    const body = {
+      ...validBody,
+      courseId: `miss-course-${Date.now()}-2`,
+      lessonId: `miss-lesson-${Date.now()}-2`,
+    }
+
+    const res = await request(app).post('/api/lesson/generate').send(body)
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual(mockLesson)
+  })
+
+  it('saves the generated lesson to the database on a cache miss', async () => {
+    vi.mocked(generateLesson).mockResolvedValue(mockLesson)
+    const courseId = `persist-course-${Date.now()}`
+    const lessonId = `persist-lesson-${Date.now()}`
+
+    await request(app)
+      .post('/api/lesson/generate')
+      .send({ ...validBody, courseId, lessonId })
+
+    expect(getLesson(courseId, lessonId)).toEqual(mockLesson)
+  })
+
+  it('returns 500 when lesson generation fails', async () => {
+    vi.mocked(generateLesson).mockRejectedValue(new Error('API error'))
+    const body = {
+      ...validBody,
+      courseId: `fail-course-${Date.now()}`,
+      lessonId: `fail-lesson-${Date.now()}`,
+    }
+
+    const res = await request(app).post('/api/lesson/generate').send(body)
 
     expect(res.status).toBe(500)
-    expect(res.body).toHaveProperty('error')
+    expect(res.body.error).toBe('Failed to generate lesson')
   })
 
   it('400 response body contains a structured zod error with fieldErrors', async () => {
-    const res = await request(app)
-      .post('/api/lesson/generate')
-      .send({ targetTech: 'Redux Toolkit', lessonTitle: 'createSlice' })
+    const res = await request(app).post('/api/lesson/generate').send({
+      targetTech: 'Redux Toolkit',
+      lessonTitle: 'createSlice',
+      courseId: 'c1',
+      lessonId: 'l1',
+    })
 
     expect(res.status).toBe(400)
     expect(res.body.error).toHaveProperty('fieldErrors')
@@ -124,10 +273,13 @@ describe('POST /api/lesson/generate', () => {
 
   it('responds with Content-Type application/json on success', async () => {
     vi.mocked(generateLesson).mockResolvedValue(mockLesson)
+    const body = {
+      ...validBody,
+      courseId: `ct-course-${Date.now()}`,
+      lessonId: `ct-lesson-${Date.now()}`,
+    }
 
-    const res = await request(app)
-      .post('/api/lesson/generate')
-      .send({ knownTech: 'Redux', targetTech: 'Redux Toolkit', lessonTitle: 'createSlice' })
+    const res = await request(app).post('/api/lesson/generate').send(body)
 
     expect(res.headers['content-type']).toMatch(/application\/json/)
   })

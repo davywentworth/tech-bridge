@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import type { Curriculum, Lesson } from '../types'
-import { generateLesson } from '../api/course'
+import { generateLesson, getCourse } from '../api/course'
 import { CurriculumView } from '../components/CurriculumView'
 import { LessonView } from '../components/LessonView'
 import { useProgress } from '../hooks/useProgress'
@@ -12,25 +12,68 @@ export function LessonPage() {
   const navigate = useNavigate()
   const state = location.state as { curriculum?: Curriculum; lessonTitle?: string } | null
 
-  const curriculum: Curriculum | null = state?.curriculum ?? null
+  const [curriculum, setCurriculum] = useState<Curriculum | null>(state?.curriculum ?? null)
   const [lesson, setLesson] = useState<Lesson | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Capture state values at effect-trigger time via refs so the async load
+  // function always sees the values from the render that fired the effect.
+  const stateRef = useRef(state)
+  stateRef.current = state
+
   const { isCompleted, markComplete } = useProgress(courseId)
 
   useEffect(() => {
-    if (!curriculum || !state?.lessonTitle) return
+    if (!courseId || !lessonId) {
+      navigate('/')
+      return
+    }
+
     setLoading(true)
     setError(null)
-    generateLesson(curriculum.knownTech, curriculum.targetTech, state.lessonTitle)
-      .then(setLesson)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false))
-    // curriculum and state.lessonTitle come from router state; including them would cause
-    // infinite re-renders on navigation. lessonId changing is the correct trigger.
+
+    async function load() {
+      try {
+        // Read from ref into local variables synchronously before any await — stateRef.current
+        // reflects the latest render, so any await could observe a stale value if read later.
+        // On hard refresh location.state is lost — fetch curriculum from backend
+        // and derive the lesson title from it using the lessonId URL param.
+        let activeCurriculum = stateRef.current?.curriculum ?? null
+        let activeTitle = stateRef.current?.lessonTitle ?? null
+
+        if (!activeCurriculum) {
+          activeCurriculum = await getCourse(courseId!)
+          setCurriculum(activeCurriculum)
+        }
+
+        if (!activeTitle) {
+          const meta = activeCurriculum.modules
+            .flatMap((m) => m.lessons)
+            .find((l) => l.id === lessonId)
+          if (!meta) throw new Error('Lesson not found in curriculum')
+          activeTitle = meta.title
+        }
+
+        const result = await generateLesson(
+          activeCurriculum.knownTech,
+          activeCurriculum.targetTech,
+          activeTitle,
+          courseId!,
+          lessonId!
+        )
+        setLesson(result)
+      } catch (e) {
+        setError((e as Error).message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    load()
+    // lessonId and courseId are the correct triggers; state is captured via stateRef
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lessonId])
+  }, [lessonId, courseId])
 
   const completedIds =
     curriculum?.modules
