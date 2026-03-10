@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { generateCurriculum } from '../services/anthropic.js'
-import { saveCourse, getCourse } from '../services/db.js'
+import { saveCourse, getCourse, getCourseByTech } from '../services/db.js'
 
 const router = Router()
 
@@ -20,6 +20,12 @@ router.post('/generate', async (req, res) => {
   const { knownTech, targetTech } = parsed.data
 
   try {
+    const existing = getCourseByTech(knownTech, targetTech)
+    if (existing) {
+      res.json(JSON.parse(existing.curriculum))
+      return
+    }
+
     const curriculum = await generateCurriculum(knownTech, targetTech)
     saveCourse(curriculum.id, knownTech, targetTech, curriculum)
     res.json(curriculum)

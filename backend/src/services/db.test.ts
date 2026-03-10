@@ -1,6 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import sqlite3wasm from 'node-sqlite3-wasm'
-import { initSchema, saveCourse, getCourse, saveProgress, getProgress } from './db.js'
+import {
+  initSchema,
+  saveCourse,
+  getCourse,
+  getCourseByTech,
+  saveLesson,
+  getLesson,
+  saveProgress,
+  getProgress,
+} from './db.js'
 
 const { Database } = sqlite3wasm as any
 
@@ -18,15 +27,15 @@ describe('initSchema', () => {
     initSchema(db)
   })
 
-  it('creates the courses and progress tables on a fresh database', () => {
+  it('creates the courses, lessons, and progress tables on a fresh database', () => {
     const tables = db.all(`SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`)
-    expect(tables.map((t: any) => t.name)).toEqual(['courses', 'progress'])
+    expect(tables.map((t: any) => t.name)).toEqual(['courses', 'lessons', 'progress'])
   })
 
   it('is safe to call twice on the same database (idempotent)', () => {
     expect(() => initSchema(db)).not.toThrow()
     const tables = db.all(`SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`)
-    expect(tables.map((t: any) => t.name)).toEqual(['courses', 'progress'])
+    expect(tables.map((t: any) => t.name)).toEqual(['courses', 'lessons', 'progress'])
   })
 
   it('creates the courses table with the correct columns', () => {
@@ -34,9 +43,48 @@ describe('initSchema', () => {
     expect(cols).toEqual(['id', 'known_tech', 'target_tech', 'curriculum', 'created_at'])
   })
 
+  it('creates the lessons table with the correct columns', () => {
+    const cols = db.all(`PRAGMA table_info(lessons)`).map((c: any) => c.name)
+    expect(cols).toEqual(['course_id', 'lesson_id', 'content', 'created_at'])
+  })
+
   it('creates the progress table with the correct columns', () => {
     const cols = db.all(`PRAGMA table_info(progress)`).map((c: any) => c.name)
     expect(cols).toEqual(['course_id', 'lesson_id', 'completed', 'notes'])
+  })
+
+  it('enforces the composite primary key on lessons — duplicate course_id + lesson_id throws', () => {
+    db.run(`INSERT INTO lessons (course_id, lesson_id, content, created_at) VALUES (?, ?, ?, ?)`, [
+      'c1',
+      'l1',
+      '{}',
+      0,
+    ])
+    expect(() =>
+      db.run(
+        `INSERT INTO lessons (course_id, lesson_id, content, created_at) VALUES (?, ?, ?, ?)`,
+        ['c1', 'l1', '{}', 1]
+      )
+    ).toThrow()
+  })
+
+  it('enforces NOT NULL on lessons.content', () => {
+    expect(() =>
+      db.run(
+        `INSERT INTO lessons (course_id, lesson_id, content, created_at) VALUES ('c1', 'l1', NULL, 0)`
+      )
+    ).toThrow()
+  })
+
+  it('matches courses case-insensitively on known_tech and target_tech', () => {
+    db.run(
+      `INSERT INTO courses (id, known_tech, target_tech, curriculum, created_at) VALUES ('x', 'Redux', 'Redux Toolkit', '{}', 0)`
+    )
+    const row = db.get(
+      `SELECT * FROM courses WHERE known_tech = 'redux' AND target_tech = 'redux toolkit'`
+    )
+    expect(row).not.toBeNull()
+    expect(row.id).toBe('x')
   })
 
   it('defaults the completed column to 0 when not provided', () => {
@@ -221,6 +269,193 @@ describe('saveCourse and getCourse', () => {
 
     const count = db.get('SELECT COUNT(*) as count FROM courses WHERE id = ?', ['course-4'])
     expect(count.count).toBe(1)
+  })
+})
+
+describe('getCourseByTech', () => {
+  let db: any
+
+  beforeEach(() => {
+    db = createTestDb()
+  })
+
+  it('returns null when no course matches the given tech pair', () => {
+    const row = getCourseByTech('React', 'Vue', db)
+    expect(row).toBeNull()
+  })
+
+  it('returns the matching course when knownTech and targetTech match exactly', () => {
+    saveCourse('course-bt-1', 'Redux', 'Redux Toolkit', { modules: [] }, db)
+    const row = getCourseByTech('Redux', 'Redux Toolkit', db)
+    expect(row).not.toBeNull()
+    expect(row!.id).toBe('course-bt-1')
+  })
+
+  it('matches case-insensitively on knownTech', () => {
+    saveCourse('course-bt-2', 'Redux', 'Redux Toolkit', {}, db)
+    const row = getCourseByTech('redux', 'Redux Toolkit', db)
+    expect(row).not.toBeNull()
+    expect(row!.id).toBe('course-bt-2')
+  })
+
+  it('matches case-insensitively on targetTech', () => {
+    saveCourse('course-bt-3', 'Redux', 'Redux Toolkit', {}, db)
+    const row = getCourseByTech('Redux', 'redux toolkit', db)
+    expect(row).not.toBeNull()
+    expect(row!.id).toBe('course-bt-3')
+  })
+
+  it('matches case-insensitively on both knownTech and targetTech at once', () => {
+    saveCourse('course-bt-4', 'Redux', 'Redux Toolkit', {}, db)
+    const row = getCourseByTech('REDUX', 'REDUX TOOLKIT', db)
+    expect(row).not.toBeNull()
+    expect(row!.id).toBe('course-bt-4')
+  })
+
+  it('returns null when knownTech matches but targetTech does not', () => {
+    saveCourse('course-bt-5', 'Redux', 'Redux Toolkit', {}, db)
+    const row = getCourseByTech('Redux', 'Zustand', db)
+    expect(row).toBeNull()
+  })
+
+  it('returns null when targetTech matches but knownTech does not', () => {
+    saveCourse('course-bt-6', 'Redux', 'Redux Toolkit', {}, db)
+    const row = getCourseByTech('React', 'Redux Toolkit', db)
+    expect(row).toBeNull()
+  })
+
+  it('returns a course with the correct field shape', () => {
+    saveCourse('course-bt-7', 'Redux', 'Zustand', { modules: [] }, db)
+    const row = getCourseByTech('Redux', 'Zustand', db)
+    expect(Object.keys(row!).sort()).toEqual([
+      'created_at',
+      'curriculum',
+      'id',
+      'known_tech',
+      'target_tech',
+    ])
+  })
+
+  it('returns one of the matching courses when multiple rows share the same tech pair', () => {
+    saveCourse('course-bt-dup-1', 'React', 'Next.js', {}, db)
+    saveCourse('course-bt-dup-2', 'React', 'Next.js', {}, db)
+    const row = getCourseByTech('React', 'Next.js', db)
+    expect(row).not.toBeNull()
+    expect(['course-bt-dup-1', 'course-bt-dup-2']).toContain(row!.id)
+  })
+})
+
+describe('saveLesson and getLesson', () => {
+  let db: any
+
+  beforeEach(() => {
+    db = createTestDb()
+  })
+
+  it('returns null when the lesson does not exist', () => {
+    const result = getLesson('course-1', 'lesson-1', db)
+    expect(result).toBeNull()
+  })
+
+  it('saves a lesson and retrieves it as a parsed object', () => {
+    const content = { title: 'createSlice', explanation: 'A Redux helper.' }
+    saveLesson('course-1', 'lesson-1', content, db)
+    const result = getLesson('course-1', 'lesson-1', db)
+    expect(result).toEqual(content)
+  })
+
+  it('stores lesson content as a raw JSON string in the database', () => {
+    const content = { title: 'test' }
+    saveLesson('course-1', 'lesson-1', content, db)
+    const row = db.get('SELECT content FROM lessons WHERE course_id = ? AND lesson_id = ?', [
+      'course-1',
+      'lesson-1',
+    ])
+    expect(row.content).toBe(JSON.stringify(content))
+  })
+
+  it('stores complex nested lesson objects without data loss', () => {
+    const content = {
+      id: 'l1',
+      title: 'createSlice',
+      explanation: 'Combine reducers and actions.',
+      knownWayCode: 'const reducer = (state, action) => state',
+      targetWayCode: 'createSlice({ name, initialState, reducers })',
+      exercise: 'Convert a reducer.',
+      starterCode: 'function myReducer() {}',
+      solutionCode: 'const mySlice = createSlice({})',
+      language: 'typescript',
+    }
+    saveLesson('course-1', 'lesson-1', content, db)
+    expect(getLesson('course-1', 'lesson-1', db)).toEqual(content)
+  })
+
+  it('returns null for a different lesson_id in the same course', () => {
+    saveLesson('course-1', 'lesson-1', { title: 'A' }, db)
+    expect(getLesson('course-1', 'lesson-2', db)).toBeNull()
+  })
+
+  it('returns null for a different course_id with the same lesson_id', () => {
+    saveLesson('course-1', 'lesson-1', { title: 'A' }, db)
+    expect(getLesson('course-2', 'lesson-1', db)).toBeNull()
+  })
+
+  it('sets created_at to the current timestamp when saving a new lesson', () => {
+    const before = Date.now()
+    saveLesson('course-1', 'lesson-1', { title: 'test' }, db)
+    const after = Date.now()
+    const row = db.get('SELECT created_at FROM lessons WHERE course_id = ? AND lesson_id = ?', [
+      'course-1',
+      'lesson-1',
+    ])
+    expect(typeof row.created_at).toBe('number')
+    expect(row.created_at).toBeGreaterThanOrEqual(before)
+    expect(row.created_at).toBeLessThanOrEqual(after)
+  })
+
+  it('refreshes created_at when overwriting an existing lesson', () => {
+    saveLesson('course-1', 'lesson-1', { title: 'Original' }, db)
+    const firstRow = db.get(
+      'SELECT created_at FROM lessons WHERE course_id = ? AND lesson_id = ?',
+      ['course-1', 'lesson-1']
+    )
+
+    const beforeUpdate = Date.now()
+    saveLesson('course-1', 'lesson-1', { title: 'Updated' }, db)
+    const afterUpdate = Date.now()
+
+    const row = db.get('SELECT created_at FROM lessons WHERE course_id = ? AND lesson_id = ?', [
+      'course-1',
+      'lesson-1',
+    ])
+    expect(row.created_at).toBeGreaterThanOrEqual(beforeUpdate)
+    expect(row.created_at).toBeLessThanOrEqual(afterUpdate)
+    expect(row.created_at).toBeGreaterThanOrEqual(firstRow.created_at)
+  })
+
+  it('overwrites an existing lesson when saved again for the same course and lesson_id', () => {
+    saveLesson('course-1', 'lesson-1', { title: 'Original' }, db)
+    saveLesson('course-1', 'lesson-1', { title: 'Updated' }, db)
+    const result = getLesson('course-1', 'lesson-1', db)
+    expect(result).toEqual({ title: 'Updated' })
+    const count = db.get(
+      'SELECT COUNT(*) as count FROM lessons WHERE course_id = ? AND lesson_id = ?',
+      ['course-1', 'lesson-1']
+    )
+    expect(count.count).toBe(1)
+  })
+
+  it('serializes lesson content containing special characters and unicode without corruption', () => {
+    const content = { title: `It's a "test" — with unicode: 日本語`, code: '<b>bold</b>' }
+    saveLesson('course-1', 'lesson-1', content, db)
+    expect(getLesson('course-1', 'lesson-1', db)).toEqual(content)
+  })
+
+  it('stores separate lessons for the same course independently', () => {
+    saveLesson('course-1', 'lesson-1', { title: 'Lesson One' }, db)
+    saveLesson('course-1', 'lesson-2', { title: 'Lesson Two' }, db)
+    expect(getLesson('course-1', 'lesson-1', db)).toEqual({ title: 'Lesson One' })
+    expect(getLesson('course-1', 'lesson-2', db)).toEqual({ title: 'Lesson Two' })
   })
 })
 

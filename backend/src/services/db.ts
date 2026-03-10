@@ -8,19 +8,31 @@ const { Database } = sqlite3wasm as any
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DB_PATH = path.join(__dirname, '../../data/techbridge.db')
 
-// Ensure data directory exists
-fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
+// Use an in-memory database when running under Vitest so each test file gets its own
+// isolated DB instance. process.env.VITEST is set to 'true' by Vitest regardless of
+// NODE_ENV, making it a reliable way to detect the test environment.
+const isTest = process.env.VITEST === 'true'
+if (!isTest) {
+  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
+}
 
-const db = new Database(DB_PATH)
+const db = isTest ? new Database() : new Database(DB_PATH)
 
 export function initSchema(database: any) {
   database.exec(`
     CREATE TABLE IF NOT EXISTS courses (
       id TEXT PRIMARY KEY,
-      known_tech TEXT NOT NULL,
-      target_tech TEXT NOT NULL,
+      known_tech TEXT NOT NULL COLLATE NOCASE,
+      target_tech TEXT NOT NULL COLLATE NOCASE,
       curriculum TEXT NOT NULL,
       created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS lessons (
+      course_id TEXT NOT NULL,
+      lesson_id TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (course_id, lesson_id)
     );
     CREATE TABLE IF NOT EXISTS progress (
       course_id TEXT NOT NULL,
@@ -45,6 +57,23 @@ export function saveCourse(
     'INSERT OR REPLACE INTO courses (id, known_tech, target_tech, curriculum, created_at) VALUES (?, ?, ?, ?, ?)',
     [id, knownTech, targetTech, JSON.stringify(curriculum), Date.now()]
   )
+}
+
+export function getCourseByTech(
+  knownTech: string,
+  targetTech: string,
+  database: any = db
+): {
+  id: string
+  known_tech: string
+  target_tech: string
+  curriculum: string
+  created_at: number
+} | null {
+  return database.get('SELECT * FROM courses WHERE known_tech = ? AND target_tech = ? LIMIT 1', [
+    knownTech,
+    targetTech,
+  ])
 }
 
 export function getCourse(
@@ -80,6 +109,26 @@ export function saveProgress(
     'INSERT OR REPLACE INTO progress (course_id, lesson_id, completed, notes) VALUES (?, ?, ?, ?)',
     [courseId, lessonId, completed ? 1 : 0, notes ?? null]
   )
+}
+
+export function saveLesson(
+  courseId: string,
+  lessonId: string,
+  content: object,
+  database: any = db
+): void {
+  database.run(
+    'INSERT OR REPLACE INTO lessons (course_id, lesson_id, content, created_at) VALUES (?, ?, ?, ?)',
+    [courseId, lessonId, JSON.stringify(content), Date.now()]
+  )
+}
+
+export function getLesson(courseId: string, lessonId: string, database: any = db): object | null {
+  const row = database.get('SELECT content FROM lessons WHERE course_id = ? AND lesson_id = ?', [
+    courseId,
+    lessonId,
+  ])
+  return row ? JSON.parse(row.content) : null
 }
 
 export default db

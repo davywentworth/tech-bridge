@@ -63,33 +63,67 @@ describe('POST /api/course/generate', () => {
     expect(res.body).toHaveProperty('error')
   })
 
-  it('calls generateCurriculum with the provided knownTech and targetTech', async () => {
-    vi.mocked(generateCurriculum).mockResolvedValue(mockCurriculum)
-
-    await request(app)
-      .post('/api/course/generate')
-      .send({ knownTech: 'Redux', targetTech: 'Redux Toolkit' })
-
-    expect(generateCurriculum).toHaveBeenCalledWith('Redux', 'Redux Toolkit')
-  })
-
-  it('saves the generated curriculum to the database and returns it', async () => {
-    vi.mocked(generateCurriculum).mockResolvedValue(mockCurriculum)
+  it('returns the cached curriculum without calling generateCurriculum when the tech pair already exists', async () => {
+    saveCourse('cached-course-id', 'React', 'Vue', mockCurriculum)
 
     const res = await request(app)
       .post('/api/course/generate')
-      .send({ knownTech: 'Redux', targetTech: 'Redux Toolkit' })
+      .send({ knownTech: 'React', targetTech: 'Vue' })
 
     expect(res.status).toBe(200)
     expect(res.body).toEqual(mockCurriculum)
+    expect(generateCurriculum).not.toHaveBeenCalled()
+  })
+
+  it('calls generateCurriculum with the provided knownTech and targetTech on a cache miss', async () => {
+    vi.mocked(generateCurriculum).mockResolvedValue(mockCurriculum)
+    // Use unique tech names to avoid hitting state seeded by other tests in this file
+    const knownTech = `Redux-miss-${Date.now()}-1`
+    const targetTech = `Redux Toolkit-miss-${Date.now()}-1`
+
+    await request(app).post('/api/course/generate').send({ knownTech, targetTech })
+
+    expect(generateCurriculum).toHaveBeenCalledWith(knownTech, targetTech)
+  })
+
+  it('saves the generated curriculum and returns it on a cache miss, verified by a follow-up request skipping generation', async () => {
+    vi.mocked(generateCurriculum).mockResolvedValue(mockCurriculum)
+    // Use unique tech names to avoid hitting state seeded by other tests in this file
+    const knownTech = `REST-persist-${Date.now()}`
+    const targetTech = `GraphQL-persist-${Date.now()}`
+
+    const firstRes = await request(app).post('/api/course/generate').send({ knownTech, targetTech })
+    expect(firstRes.status).toBe(200)
+    expect(firstRes.body).toEqual(mockCurriculum)
+
+    // A second request for the same pair must return the cached result without calling generateCurriculum again
+    vi.clearAllMocks()
+    const secondRes = await request(app)
+      .post('/api/course/generate')
+      .send({ knownTech, targetTech })
+    expect(secondRes.status).toBe(200)
+    expect(secondRes.body).toEqual(mockCurriculum)
+    expect(generateCurriculum).not.toHaveBeenCalled()
+  })
+
+  it('cache hit is case-insensitive — returns cached curriculum when tech pair differs only in letter case', async () => {
+    saveCourse('case-test-id', 'Redux', 'Zustand', mockCurriculum)
+
+    const res = await request(app)
+      .post('/api/course/generate')
+      .send({ knownTech: 'redux', targetTech: 'zustand' })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual(mockCurriculum)
+    expect(generateCurriculum).not.toHaveBeenCalled()
   })
 
   it('returns 500 when curriculum generation fails', async () => {
     vi.mocked(generateCurriculum).mockRejectedValue(new Error('API error'))
+    const knownTech = `fail-${Date.now()}`
+    const targetTech = `fail-target-${Date.now()}`
 
-    const res = await request(app)
-      .post('/api/course/generate')
-      .send({ knownTech: 'Redux', targetTech: 'Redux Toolkit' })
+    const res = await request(app).post('/api/course/generate').send({ knownTech, targetTech })
 
     expect(res.status).toBe(500)
     expect(res.body).toHaveProperty('error')
