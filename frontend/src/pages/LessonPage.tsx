@@ -98,7 +98,7 @@ export function LessonPage() {
       )}
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        {loading && <div style={{ padding: 40, color: '#6b7280' }}>Generating lesson content…</div>}
+        {loading && <div style={{ padding: 40, color: '#6b7280' }}>Loading lesson…</div>}
         {error && <div style={{ padding: 40, color: '#c0392b' }}>Error: {error}</div>}
         {lesson && curriculum && (
           <LessonView
