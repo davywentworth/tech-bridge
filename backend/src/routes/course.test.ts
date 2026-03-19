@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import request from 'supertest'
 import app from '../app.js'
-import { saveCourse, resetDb } from '../services/db.js'
+import { saveCourse, saveProgress, resetDb } from '../services/db.js'
 
 vi.mock('../services/anthropic.js', () => ({
   generateCurriculum: vi.fn(),
@@ -30,6 +30,93 @@ beforeAll(() => {
 
 beforeEach(() => {
   vi.clearAllMocks()
+})
+
+const multiLessonCurriculum = {
+  id: 'multi-lesson-id',
+  knownTech: 'React',
+  targetTech: 'Vue',
+  description: 'Learn Vue if you already know React.',
+  modules: [
+    {
+      id: 'mod-1',
+      title: 'Basics',
+      lessons: [
+        { id: 'lesson-a', title: 'Lesson A' },
+        { id: 'lesson-b', title: 'Lesson B' },
+        { id: 'lesson-c', title: 'Lesson C' },
+      ],
+    },
+  ],
+}
+
+describe('GET /api/course', () => {
+  beforeEach(() => {
+    resetDb()
+  })
+
+  it('returns an empty array when no courses exist', async () => {
+    const res = await request(app).get('/api/course')
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual([])
+  })
+
+  it('returns correct fields for a course with no progress', async () => {
+    saveCourse('index-no-progress', 'Preact', 'SolidJS', multiLessonCurriculum)
+
+    const res = await request(app).get('/api/course')
+    expect(res.status).toBe(200)
+    const entry = res.body.find((c: { id: string }) => c.id === 'index-no-progress')
+    expect(entry).toMatchObject({
+      id: 'index-no-progress',
+      knownTech: 'Preact',
+      targetTech: 'SolidJS',
+      totalLessons: 3,
+      completedLessons: 0,
+      firstIncompleteLessonId: 'lesson-a',
+    })
+  })
+
+  it('computes completedLessons count correctly when some lessons are marked done', async () => {
+    saveCourse('index-partial', 'Lit', 'Stencil', multiLessonCurriculum)
+    saveProgress('index-partial', 'lesson-a', true)
+    saveProgress('index-partial', 'lesson-b', true)
+
+    const res = await request(app).get('/api/course')
+    const entry = res.body.find((c: { id: string }) => c.id === 'index-partial')
+    expect(entry.completedLessons).toBe(2)
+    expect(entry.totalLessons).toBe(3)
+  })
+
+  it('firstIncompleteLessonId points to the first non-completed lesson in order', async () => {
+    saveCourse('index-first-incomplete', 'Inferno', 'Mithril', multiLessonCurriculum)
+    saveProgress('index-first-incomplete', 'lesson-a', true)
+
+    const res = await request(app).get('/api/course')
+    const entry = res.body.find((c: { id: string }) => c.id === 'index-first-incomplete')
+    expect(entry.firstIncompleteLessonId).toBe('lesson-b')
+  })
+
+  it('firstIncompleteLessonId is null when all lessons are complete', async () => {
+    saveCourse('index-all-done', 'Aurelia', 'Alpine', multiLessonCurriculum)
+    saveProgress('index-all-done', 'lesson-a', true)
+    saveProgress('index-all-done', 'lesson-b', true)
+    saveProgress('index-all-done', 'lesson-c', true)
+
+    const res = await request(app).get('/api/course')
+    const entry = res.body.find((c: { id: string }) => c.id === 'index-all-done')
+    expect(entry.firstIncompleteLessonId).toBeNull()
+  })
+
+  it('returns results ordered newest-first', async () => {
+    const now = Date.now()
+    saveCourse('index-older', 'Dojo', 'Marko', multiLessonCurriculum, undefined, now - 1000)
+    saveCourse('index-newer', 'Dojo', 'Qwik', multiLessonCurriculum, undefined, now)
+
+    const res = await request(app).get('/api/course')
+    const ids = res.body.map((c: { id: string }) => c.id)
+    expect(ids.indexOf('index-newer')).toBeLessThan(ids.indexOf('index-older'))
+  })
 })
 
 describe('POST /api/course/generate', () => {

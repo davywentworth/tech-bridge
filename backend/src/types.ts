@@ -17,6 +17,15 @@ export interface Curriculum {
   modules: Module[]
 }
 
+export interface CourseIndexEntry {
+  id: string
+  knownTech: string
+  targetTech: string
+  totalLessons: number
+  completedLessons: number
+  firstIncompleteLessonId: string | null
+}
+
 export interface Lesson {
   id: string
   title: string

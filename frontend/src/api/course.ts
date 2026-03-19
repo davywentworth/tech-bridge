@@ -1,4 +1,4 @@
-import type { Curriculum } from '../types'
+import type { Curriculum, CourseIndexEntry } from '../types'
 
 const BASE = 'http://localhost:3001/api'
 
@@ -17,6 +17,12 @@ export async function getCourse(id: string): Promise<Curriculum> {
   if (!res.ok) throw new Error(await res.text())
   const data = await res.json()
   return data.curriculum ?? data
+}
+
+export async function getCourses(): Promise<CourseIndexEntry[]> {
+  const res = await fetch(`${BASE}/course`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
 }
 
 export async function generateLesson(

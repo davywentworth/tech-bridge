@@ -19,7 +19,7 @@ export function CurriculumView({
         width: 280,
         flexShrink: 0,
         borderRight: '1px solid #e5e7eb',
-        height: '100vh',
+        height: '100%',
         overflowY: 'auto',
         padding: '16px 0',
       }}

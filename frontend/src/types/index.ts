@@ -39,3 +39,12 @@ export interface ProgressEntry {
   lesson_id: string
   completed: number
 }
+
+export interface CourseIndexEntry {
+  id: string
+  knownTech: string
+  targetTech: string
+  totalLessons: number
+  completedLessons: number
+  firstIncompleteLessonId: string | null
+}

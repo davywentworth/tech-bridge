@@ -1,13 +1,41 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { generateCurriculum } from '../services/anthropic.js'
-import { saveCourse, getCourse, getCourseByTech } from '../services/db.js'
+import {
+  saveCourse,
+  getCourse,
+  getCourseByTech,
+  getAllCourses,
+  getProgress,
+} from '../services/db.js'
+import type { CourseIndexEntry, Curriculum } from '../types.js'
 
 const router = Router()
 
 const GenerateSchema = z.object({
   knownTech: z.string().min(1),
   targetTech: z.string().min(1),
+})
+
+router.get('/', (_req, res) => {
+  const rows = getAllCourses()
+  const result: CourseIndexEntry[] = rows.map((row) => {
+    const curriculum: Curriculum = JSON.parse(row.curriculum)
+    const allLessonIds = curriculum.modules.flatMap((m) => m.lessons.map((l) => l.id))
+    const progress = getProgress(row.id)
+    const completedSet = new Set(progress.filter((p) => p.completed === 1).map((p) => p.lesson_id))
+    const completedLessons = allLessonIds.filter((id) => completedSet.has(id)).length
+    const firstIncompleteLessonId = allLessonIds.find((id) => !completedSet.has(id)) ?? null
+    return {
+      id: row.id,
+      knownTech: row.known_tech,
+      targetTech: row.target_tech,
+      totalLessons: allLessonIds.length,
+      completedLessons,
+      firstIncompleteLessonId,
+    }
+  })
+  res.json(result)
 })
 
 router.post('/generate', async (req, res) => {

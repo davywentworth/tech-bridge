@@ -52,11 +52,12 @@ export function saveCourse(
   knownTech: string,
   targetTech: string,
   curriculum: object,
-  database: any = db
+  database: any = db,
+  createdAt = Date.now()
 ): void {
   database.run(
     'INSERT OR REPLACE INTO courses (id, known_tech, target_tech, curriculum, created_at) VALUES (?, ?, ?, ?, ?)',
-    [id, knownTech, targetTech, JSON.stringify(curriculum), Date.now()]
+    [id, knownTech, targetTech, JSON.stringify(curriculum), createdAt]
   )
 }
 
@@ -130,6 +131,16 @@ export function getLesson(courseId: string, lessonId: string, database: any = db
     lessonId,
   ])
   return row ? JSON.parse(row.content) : null
+}
+
+export function getAllCourses(database: any = db): Array<{
+  id: string
+  known_tech: string
+  target_tech: string
+  curriculum: string
+  created_at: number
+}> {
+  return database.all('SELECT * FROM courses ORDER BY created_at DESC')
 }
 
 export function resetDb(database: any = db): void {

@@ -87,7 +87,7 @@ export function LessonPage() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
+    <div style={{ display: 'flex', height: 'calc(100vh - 48px)', marginTop: 48 }}>
       {curriculum && (
         <CurriculumView
           curriculum={curriculum}
