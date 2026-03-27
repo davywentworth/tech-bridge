@@ -17,6 +17,7 @@ const mockLesson = {
   explanation: 'createSlice combines action creators and reducers.',
   knownWayCode: 'const reducer = (state, action) => { ... }',
   targetWayCode: 'const slice = createSlice({ name, initialState, reducers })',
+  hasExercise: true,
   exercise: 'Convert this Redux reducer to use createSlice.',
   starterCode: 'const counterReducer = (state = 0, action) => { ... }',
   solutionCode: 'const counterSlice = createSlice({ ... })',
@@ -152,6 +153,19 @@ describe('POST /api/lesson/generate', () => {
     expect(generateLesson).not.toHaveBeenCalled()
   })
 
+  it('normalizes legacy cached lessons missing hasExercise by defaulting it to true', async () => {
+    const legacyLesson = { ...mockLesson }
+    delete (legacyLesson as Record<string, unknown>)['hasExercise']
+    saveLesson('legacy-course', 'legacy-lesson', legacyLesson)
+
+    const res = await request(app)
+      .post('/api/lesson/generate')
+      .send({ ...validBody, courseId: 'legacy-course', lessonId: 'legacy-lesson' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.hasExercise).toBe(true)
+  })
+
   it('route returns early on a cache hit — the existing DB row is not re-written', async () => {
     // Seed the cache and record the timestamp to verify the route never calls saveLesson
     saveLesson('no-overwrite-course', 'no-overwrite-lesson', mockLesson)
@@ -256,6 +270,29 @@ describe('POST /api/lesson/generate', () => {
 
     expect(res.status).toBe(500)
     expect(res.body.error).toBe('Failed to generate lesson')
+  })
+
+  it('returns 500 when generateLesson resolves to null (malformed model response)', async () => {
+    vi.mocked(generateLesson).mockResolvedValue(null as unknown as ReturnType<typeof generateLesson> extends Promise<infer T> ? T : never)
+    const body = {
+      ...validBody,
+      courseId: `null-course-${Date.now()}`,
+      lessonId: `null-lesson-${Date.now()}`,
+    }
+
+    const res = await request(app).post('/api/lesson/generate').send(body)
+
+    expect(res.status).toBe(500)
+    expect(res.body.error).toBe('Failed to generate lesson')
+  })
+
+  it('returns 400 when courseId is a non-string type', async () => {
+    const res = await request(app)
+      .post('/api/lesson/generate')
+      .send({ ...validBody, courseId: 42 })
+
+    expect(res.status).toBe(400)
+    expect(res.body).toHaveProperty('error')
   })
 
   it('400 response body contains a structured zod error with fieldErrors', async () => {

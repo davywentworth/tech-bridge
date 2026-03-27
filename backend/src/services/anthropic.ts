@@ -30,12 +30,13 @@ const CURRICULUM_SCHEMA = `{
 const LESSON_SCHEMA = (knownTech: string, targetTech: string) => `{
   "id": "string (uuid)",
   "title": "string",
-  "explanation": "string (markdown, 2-4 paragraphs explaining the concept and how it maps from ${knownTech} to ${targetTech})",
+  "explanation": "string (markdown; length should match concept complexity — one tight paragraph for simple concepts, up to 4 paragraphs for nuanced ones; always map from ${knownTech} to ${targetTech})",
   "knownWayCode": "string (code example showing the ${knownTech} approach)",
   "targetWayCode": "string (code example showing the ${targetTech} approach)",
-  "exercise": "string (markdown, a hands-on exercise prompt)",
-  "starterCode": "string (starter code for the exercise)",
-  "solutionCode": "string (complete solution)",
+  "hasExercise": "boolean (true if a meaningful hands-on exercise is included; false if the concept is too simple, too abstract, or the exercise would just repeat the code comparison above)",
+  "exercise": "string (markdown hands-on exercise prompt, or empty string if hasExercise is false)",
+  "starterCode": "string (starter code for the exercise, or empty string if hasExercise is false)",
+  "solutionCode": "string (complete solution, or empty string if hasExercise is false)",
   "language": "string (typescript | javascript | python)"
 }`
 
@@ -65,7 +66,14 @@ export async function generateCurriculum(
           },
           {
             type: 'text',
-            text: `Generate a curriculum teaching ${targetTech} to someone who already knows ${knownTech}. Include 4-6 modules, each with 3-5 lessons.`,
+            text: `Generate a curriculum teaching ${targetTech} to someone who already knows ${knownTech}.
+
+Structure the curriculum based on the complexity of the topic:
+- Simple migrations or incremental upgrades: 2-3 modules, 2-4 lessons each
+- Moderate topics: 3-5 modules, 3-5 lessons each
+- Complex new paradigms: 4-6 modules, 4-6 lessons each
+
+Use your judgment — don't pad with unnecessary modules or lessons if the topic doesn't warrant them.`,
           },
         ],
       },
@@ -104,7 +112,14 @@ export async function generateLesson(
           },
           {
             type: 'text',
-            text: `Generate full lesson content for: "${lessonTitle}" in a course teaching ${targetTech} to someone who knows ${knownTech}.`,
+            text: `Generate full lesson content for: "${lessonTitle}" in a course teaching ${targetTech} to someone who knows ${knownTech}.
+
+For the exercise: include one if there's a meaningful hands-on task the learner can complete independently. A good exercise asks the learner to write new code or adapt a pattern — not just copy the example above.
+
+Skip the exercise (set hasExercise to false, leave exercise/starterCode/solutionCode as empty strings) if:
+- The concept is purely conceptual or philosophical (e.g. "why X exists")
+- The exercise would be trivially obvious (e.g. "change the variable name")
+- It would just repeat the code comparison with no added learning value`,
           },
         ],
       },

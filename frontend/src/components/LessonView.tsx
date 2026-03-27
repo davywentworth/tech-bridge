@@ -159,22 +159,24 @@ export function LessonView({ lesson, knownTech, targetTech, isCompleted, onMarkC
         )}
 
         {/* Exercise */}
-        <section style={{ marginBottom: 20 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Exercise</h2>
-          <div
-            style={{
-              padding: '12px 16px',
-              background: '#f9fafb',
-              borderRadius: 8,
-              marginBottom: 16,
-              fontSize: 14,
-              lineHeight: 1.6,
-            }}
-          >
-            <ReactMarkdown>{lesson.exercise}</ReactMarkdown>
-          </div>
-          <CodeEditor lesson={lesson} />
-        </section>
+        {lesson.hasExercise && (
+          <section style={{ marginBottom: 20 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Exercise</h2>
+            <div
+              style={{
+                padding: '12px 16px',
+                background: '#f9fafb',
+                borderRadius: 8,
+                marginBottom: 16,
+                fontSize: 14,
+                lineHeight: 1.6,
+              }}
+            >
+              <ReactMarkdown>{lesson.exercise}</ReactMarkdown>
+            </div>
+            <CodeEditor lesson={lesson} />
+          </section>
+        )}
       </div>
     </div>
   )
