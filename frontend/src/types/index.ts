@@ -23,6 +23,7 @@ export interface Lesson {
   explanation: string
   knownWayCode: string
   targetWayCode: string
+  hasExercise: boolean
   exercise: string
   starterCode: string
   solutionCode: string

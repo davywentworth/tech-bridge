@@ -32,6 +32,7 @@ const lesson: Lesson = {
   id: 'l1',
   title: 'createSlice basics',
   explanation: 'Use **createSlice** to reduce boilerplate.',
+  hasExercise: true,
   exercise: 'Write a counter slice.',
   knownWayCode: 'const reducer = (state, action) => state',
   targetWayCode: 'const slice = createSlice({...})',
@@ -66,6 +67,19 @@ describe('LessonView', () => {
   it('renders the exercise prompt', () => {
     renderLesson()
     expect(screen.getByText('Write a counter slice.')).toBeInTheDocument()
+  })
+
+  it('hides the exercise section when hasExercise is false', () => {
+    const noExerciseLesson: Lesson = {
+      ...lesson,
+      hasExercise: false,
+      exercise: '',
+      starterCode: '',
+      solutionCode: '',
+    }
+    renderLesson({ lesson: noExerciseLesson })
+    expect(screen.queryByRole('heading', { name: 'Exercise' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
   it('shows "Mark Complete" when the lesson is not completed', () => {
@@ -141,6 +155,14 @@ describe('LessonView', () => {
     renderLesson()
     await user.click(screen.getByRole('button', { name: 'Sequential' }))
     expect(screen.queryByRole('button', { name: /Scroll/ })).not.toBeInTheDocument()
+  })
+
+  it('hides the scroll-synced panels in sequential mode', async () => {
+    const user = userEvent.setup()
+    renderLesson()
+    await user.click(screen.getByRole('button', { name: 'Sequential' }))
+    expect(screen.queryByTestId('left-scroll-panel')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('right-scroll-panel')).not.toBeInTheDocument()
   })
 
   it('unlocks scroll when clicking the locked button', async () => {

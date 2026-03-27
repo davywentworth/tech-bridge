@@ -25,11 +25,21 @@ router.post('/generate', async (req, res) => {
   try {
     const cached = getLesson(courseId, lessonId)
     if (cached) {
-      res.json(cached)
+      // Clone before mutating to avoid corrupting the object returned by the DB layer
+      const lesson = { ...(cached as Record<string, unknown>) }
+      // Normalize legacy cached lessons that predate the hasExercise field
+      if (lesson['hasExercise'] === undefined) {
+        lesson['hasExercise'] = true
+      }
+      res.json(lesson)
       return
     }
 
     const lesson = await generateLesson(knownTech, targetTech, lessonTitle)
+    if (!lesson) {
+      res.status(500).json({ error: 'Failed to generate lesson' })
+      return
+    }
     saveLesson(courseId, lessonId, lesson)
     res.json(lesson)
   } catch (err) {
