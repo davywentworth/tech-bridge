@@ -1,7 +1,8 @@
 import Editor from '@monaco-editor/react'
+import type { editor } from 'monaco-editor'
 import type { Lesson, ExecuteResult } from '../types'
 import { runCode } from '../api/execute'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { OutputPanel } from './OutputPanel'
 
 interface Props {
@@ -13,6 +14,29 @@ export function CodeEditor({ lesson }: Props) {
   const [result, setResult] = useState<ExecuteResult | null>(null)
   const [running, setRunning] = useState(false)
   const [showSolution, setShowSolution] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+
+  useEffect(() => {
+    setCode(lesson.starterCode)
+    setShowSolution(false)
+    setResult(null)
+  }, [lesson])
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    let rafId = 0
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => editorRef.current?.layout())
+    })
+    ro.observe(el)
+    return () => {
+      ro.disconnect()
+      cancelAnimationFrame(rafId)
+    }
+  }, [])
 
   async function handleRun() {
     setRunning(true)
@@ -65,20 +89,29 @@ export function CodeEditor({ lesson }: Props) {
         </div>
       </div>
 
-      <Editor
-        height="280px"
-        language={
-          lesson.language === 'typescript'
-            ? 'typescript'
-            : lesson.language === 'javascript'
-              ? 'javascript'
-              : 'python'
-        }
-        value={code}
-        onChange={(val) => setCode(val ?? '')}
-        theme="vs-dark"
-        options={{ minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false }}
-      />
+      <div
+        ref={containerRef}
+        style={{ resize: 'vertical', overflow: 'hidden', minHeight: 120, height: 280 }}
+      >
+        <Editor
+          height="100%"
+          language={
+            lesson.language === 'typescript'
+              ? 'typescript'
+              : lesson.language === 'javascript'
+                ? 'javascript'
+                : 'python'
+          }
+          value={code}
+          onChange={(val) => setCode(val ?? '')}
+          onMount={(ed) => {
+            editorRef.current = ed
+            ed.layout()
+          }}
+          theme="vs-dark"
+          options={{ minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false }}
+        />
+      </div>
 
       {result && <OutputPanel result={result} />}
     </div>
