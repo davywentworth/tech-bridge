@@ -273,7 +273,9 @@ describe('POST /api/lesson/generate', () => {
   })
 
   it('returns 500 when generateLesson resolves to null (malformed model response)', async () => {
-    vi.mocked(generateLesson).mockResolvedValue(null as unknown as ReturnType<typeof generateLesson> extends Promise<infer T> ? T : never)
+    vi.mocked(generateLesson).mockResolvedValue(
+      null as unknown as ReturnType<typeof generateLesson> extends Promise<infer T> ? T : never
+    )
     const body = {
       ...validBody,
       courseId: `null-course-${Date.now()}`,
